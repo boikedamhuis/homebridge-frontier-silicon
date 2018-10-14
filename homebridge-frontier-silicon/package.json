@@ -1,0 +1,23 @@
+{
+  "name": "homebridge-frontier-silicon",
+  "version": "0.0.1",
+  "description": "Plugin for frontier sillicon devices",
+  "license": "ISC",
+  "keywords": [
+    "homebridge-frontier-sillicon"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/boikedamhuis/homebridge-frontier-silicon"
+  },
+  "bugs": {
+    "url": "https://github.com/boikedamhuis/homebridge-frontier-silicon/issues"
+  },
+  "author": {
+    "name": "Boike Damhuis"
+  },
+  "engines": {
+    "node": ">=0.12.0",
+    "homebridge": ">=0.2.0"
+  }
+}
