@@ -1,10 +1,10 @@
 {
   "name": "homebridge-frontier-silicon",
-  "version": "0.0.2",
+  "version": "0.0.1",
   "description": "Plugin for frontier silicon devices",
   "license": "ISC",
   "keywords": [
-    "homebridge-frontier-silicon"
+    "homebridge-plugin"
   ],
   "repository": {
     "type": "git",
