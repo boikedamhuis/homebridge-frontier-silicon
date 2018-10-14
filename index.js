@@ -4,9 +4,19 @@ var pollingtoevent = require("polling-to-event");
 
 
 module.exports = function (homebridge) {
+
+	console.log("homebridge API version: " + homebridge.version);
+
+  // Accessory must be created from PlatformAccessory Constructor
+  Accessory = homebridge.platformAccessory;
+
+  // Service and Characteristic are from hap-nodejs
+  Service = homebridge.hap.Service;
+  Characteristic = homebridge.hap.Characteristic;
+  UUIDGen = homebridge.hap.uuid;
     Service = homebridge.hap.Service;
     Characteristic = homebridge.hap.Characteristic;
-    homebridge.registerAccessory("homebridge-frontier-silicon", "frontier-silicon", frontier);
+    homebridge.registerAccessory("test", "test", frontier);
 };
 
 
@@ -45,23 +55,6 @@ function frontier(log, config) {
 
 frontier.prototype = {
 
-    httpRequest: function (url, body, method, username, password, sendimmediately, callback) {
-        request({
-                url: url,
-                body: body,
-                method: method,
-                rejectUnauthorized: false,
-                auth: {
-                    user: username,
-                    pass: password,
-                    sendImmediately: sendimmediately
-                }
-            },
-            function (error, response, body) {
-                callback(error, response, body)
-            })
-    },
-
     setPowerState: function (powerState, callback) {
         this.log("Power On", powerState);
         this.log("Enable Set", this.enableSet);
@@ -71,9 +64,9 @@ frontier.prototype = {
             var url;
             var body;
 
-            if (!this.on_url || !this.off_url) {
-                this.log.warn("Ignoring request; No power url defined.");
-                callback(new Error("No power url defined."));
+            if (!this.on_url) {
+                this.log.warn("Ignoring request; No IP adress defined.");
+                callback(new Error("No IP adress defined."));
                 return;
             }
 
