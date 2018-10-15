@@ -2,6 +2,9 @@ var Service, Characteristic;
 var request = require("request");
 var pollingtoevent = require("polling-to-event");
 
+const wifiradio = require('wifiradio');
+
+
 
 module.exports = function (homebridge) {
     Service = homebridge.hap.Service;
@@ -32,9 +35,9 @@ function HttpAccessory(log, config) {
     this.service = config["service"] || "Switch";
     this.name = config["name"];
     this.brightnessHandling = config["brightnessHandling"] || "no";
-    this.switchHandling = "no";
-    //realtime polling info
+    this.switchHandling = "yes";
 
+	
     //realtime polling info
     this.state = false;
     this.currentlevel = 0;
@@ -45,18 +48,7 @@ function HttpAccessory(log, config) {
     if (this.status_url && this.switchHandling === "realtime") {
         var powerurl = this.status_url;
         var statusemitter = pollingtoevent(function (done) {
-            that.httpRequest(powerurl, "", "GET", that.username, that.password, that.sendimmediately, function (error, response, body) {
-                if (error) {
-                    that.log("HTTP get power function failed: %s", error.message);
-                    try {
-                        done(new Error("Network failure that must not stop homebridge!"));
-                    } catch (err) {
-                        that.log(err.message);
-                    }
-                } else {
-                    done(null, body);
-                }
-            })
+            
         }, { longpolling: true, interval: 300, longpollEventName: "statuspoll" });
 
         function compareStates(customStatus, stateData) {
@@ -72,27 +64,29 @@ function HttpAccessory(log, config) {
         }
 
         statusemitter.on("statuspoll", function (responseBody) {
-            var binaryState;
-            if (that.status_on && that.status_off) {    //Check if custom status checks are set
-                var customStatusOn = that.status_on;
-                var customStatusOff = that.status_off;
-                var statusOn, statusOff;
+                var binaryState;
+                this.log("Status Config On", this.status_on);
+                    var customStatusOn = this.status_on;
+                    var customStatusOff = this.status_off;
+                    var statusOn, statusOff;
 
-                // Check to see if custom states are a json object and if so compare to see if either one matches the state response
-                if (responseBody.startsWith("{")) {
-                    statusOn = compareStates(customStatusOn, JSON.parse(responseBody));
-                    statusOff = compareStates(customStatusOff, JSON.parse(responseBody));
-                } else {
-                    statusOn = responseBody.includes(customStatusOn);
-                    statusOff = responseBody.includes(customStatusOff);
-                }
-                that.log("Status On Status Poll", statusOn);
-                if (statusOn) binaryState = 1;
-                // else binaryState = 0;
-                if (statusOff) binaryState = 0;
-            } else {
-                binaryState = parseInt(responseBody.replace(/\D/g, ""));
-            }
+                    // Check to see if custom states are a json object and if so compare to see if either one matches the state response
+              		const radio = new wifiradio(this.ip, "1234");
+              		
+              	              			              		
+    				 radio.getPower() .then(function(response) {
+						if (response == "1") {
+   						     binaryState = 1;
+
+  					  }
+   						 // else binaryState = 0;
+ 						  if (response == "0") {
+ 						  binaryState = 0;
+
+   						 }
+    					console.log(response);
+    					callback(null, binaryState);
+						})
             that.state = binaryState > 0;
             that.log(that.service, "received power", that.status_url, "state is currently", binaryState);
             // switch used to easily add additonal services
@@ -145,65 +139,39 @@ function HttpAccessory(log, config) {
 
 HttpAccessory.prototype = {
 
-    httpRequest: function (url, body, method, username, password, sendimmediately, callback) {
-        request({
-                url: url,
-                body: body,
-                method: method,
-                rejectUnauthorized: false,
-                auth: {
-                    user: username,
-                    pass: password,
-                    sendImmediately: sendimmediately
-                }
-            },
-            function (error, response, body) {
-                callback(error, response, body)
-            })
-    },
+
 
     setPowerState: function (powerState, callback) {
         this.log("Power On", powerState);
-        this.log("Enable Set", this.enableSet);
-        this.log("Current Level", this.currentlevel);
+        
         if (this.enableSet === true) {
 
             var url;
             var body;
 
             if (!this.on_url || !this.off_url) {
-                this.log.warn("Ignoring request; No power url defined.");
-                callback(new Error("No power url defined."));
+                this.log.warn("No IP adress defined");
+                callback(new Error("No power IP defined."));
                 return;
             }
-
+			const radio = new wifiradio(this.ip, "1234");
+			
            if (powerState) {
 
-                var backurlon = "/fsapi/SET/netRemote.sys.power?pin=1234&value=1";
-                var url2 = this.on_url + backurlon;
-                url = url2;
+			
+                radio.setPower(1);
+                
                 body = this.on_body;
                 this.log("Setting power state to on");
             } else {
-                var backurloff = "/fsapi/SET/netRemote.sys.power?pin=1234&value=0";
-                url = this.on_url + backurloff;
-                body = this.on_body;
+				radio.setPower(0);     
                 this.log("Setting power state to off");
             }
-
-            this.httpRequest(url, body, this.http_method, this.username, this.password, this.sendimmediately, function (error, response, responseBody) {
-                if (error) {
-                    this.log("HTTP set power function failed: %s", error.message);
-                    callback(error);
-                } else {
-                    this.log("HTTP set power function succeeded!");
-                    callback();
-                }
-            }.bind(this));
-        } else {
+            
             callback();
-        }
-    },
+    }
+    
+},
 
     getPowerState: function (callback) {
         if (!this.status_url) {
@@ -215,86 +183,38 @@ HttpAccessory.prototype = {
         var url = this.status_url;
         this.log("Getting power state");
 
-        this.httpRequest(url, "", "GET", this.username, this.password, this.sendimmediately, function (error, response, responseBody) {
-            if (error) {
-                this.log("HTTP get power function failed: %s", error.message);
-                callback(error);
-            } else {
+
                 var binaryState;
                 this.log("Status Config On", this.status_on);
-                if (this.status_on && this.status_off) {        //Check if custom status checks are set
                     var customStatusOn = this.status_on;
                     var customStatusOff = this.status_off;
                     var statusOn, statusOff;
 
                     // Check to see if custom states are a json object and if so compare to see if either one matches the state response
-                    if (responseBody.startsWith("{")) {
-                        statusOn = compareStates(customStatusOn, JSON.parse(responseBody));
-                        statusOff = compareStates(customStatusOff, JSON.parse(responseBody));
-                    } else {
-                        statusOn = responseBody.includes(customStatusOn);
-                        statusOff = responseBody.includes(customStatusOff);
-                    }
-                    this.log("Status On Get Power State", statusOn);
-                    if (statusOn) binaryState = 1;
-                    // else binaryState = 0;
-                    if (statusOff) binaryState = 0;
-                } else {
-                    binaryState = parseInt(responseBody.replace(/\D/g, ""));
-                }
-                var powerOn = binaryState > 0;
+              		const radio = new wifiradio(this.ip, "1234");
+              		
+              	              			              		
+    				 radio.getPower() .then(function(response) {
+						if (response == "1") {
+   						     binaryState = 1;
+
+  					  }
+   						 // else binaryState = 0;
+ 						  if (response == "0") {
+ 						  binaryState = 0;
+
+   						 }
+    					console.log(response);
+    					callback(null, binaryState);
+						})
+
+                    
+                    
+                	
+               
+                
+                //var powerOn = binaryState = 0;
                 this.log("Power state is currently %s", binaryState);
-                callback(null, powerOn);
-            }
-        }.bind(this));
-    },
-
-    getBrightness: function (callback) {
-        if (!this.brightnesslvl_url) {
-            this.log.warn("Ignoring request; No brightness level url defined.");
-            callback(new Error("No brightness level url defined."));
-            return;
-        }
-        var url = this.brightnesslvl_url;
-        this.log("Getting Brightness level");
-
-        this.httpRequest(url, "", "GET", this.username, this.password, this.sendimmediately, function (error, response, responseBody) {
-            if (error) {
-                this.log("HTTP get brightness function failed: %s", error.message);
-                callback(error);
-            } else {
-                var binaryState = parseInt(responseBody.replace(/\D/g, ""));
-                var level = binaryState;
-                this.log("brightness state is currently %s", binaryState);
-                callback(null, level);
-            }
-        }.bind(this));
-    },
-
-    setBrightness: function (level, callback) {
-        if (this.enableSet === true) {
-            if (!this.brightness_url) {
-                this.log.warn("Ignoring request; No brightness url defined.");
-                callback(new Error("No brightness url defined."));
-                return;
-            }
-
-            var url = this.brightness_url.replace("%b", level);
-
-            this.log("Setting brightness to %s", level);
-
-            this.httpRequest(url, "", this.http_brightness_method, this.username, this.password, this.sendimmediately, function (error, response, body) {
-                if (error) {
-                    this.log("HTTP brightness function failed: %s", error);
-                    callback(error);
-                } else {
-                    this.log("HTTP brightness function succeeded!");
-                    callback();
-                }
-            }.bind(this));
-        } else {
-            callback();
-        }
     },
 
     identify: function (callback) {
