@@ -9,7 +9,7 @@ const wifiradio = require('wifiradio');
 module.exports = function (homebridge) {
     Service = homebridge.hap.Service;
     Characteristic = homebridge.hap.Characteristic;
-    homebridge.registerAccessory("homebridge-frontier-silicone", "frontier-silicone", HttpAccessory);
+    homebridge.registerAccessory("homebridge-frontier-silicone", "frontier-silicon", HttpAccessory);
 };
 
 
@@ -35,7 +35,7 @@ function HttpAccessory(log, config) {
     this.service = config["service"] || "Switch";
     this.name = config["name"];
     this.brightnessHandling = config["brightnessHandling"] || "no";
-    this.switchHandling = "realtime";
+    this.switchHandling = "yes";
 
 	
     //realtime polling info
@@ -46,50 +46,67 @@ function HttpAccessory(log, config) {
 
     // Status Polling, if you want to add additional services that don't use switch handling you can add something like this || (this.service=="Smoke" || this.service=="Motion"))
     if (this.status_url && this.switchHandling === "realtime") {
-    
-    const radio = new wifiradio(this.ip, "1234");
-    var status;
-    var binaryState;      
-    emitter = pollingtoevent(function(done) {
-      var url = this.status_url;
-      var binaryState;
-      //console.log("Status Config On", this.status_on);
-      var customStatusOn = this.status_on;
-      var customStatusOff = this.status_off;
-      var statusOn, statusOff;
-      const radio = new wifiradio(this.ip, "1234");
-                                                            
-        radio.getPower() .then(function(response) {
-                        if (response == "1") {
-                         binaryState = 1;
+        var powerurl = this.status_url;
+        var statusemitter = pollingtoevent(function (done) {
+            
+        }, { longpolling: true, interval: 300, longpollEventName: "statuspoll" });
 
+        function compareStates(customStatus, stateData) {
+            var objectsEqual = true;
+            for (var param in customStatus) {
+                if (!stateData.hasOwnProperty(param) || customStatus[param] !== stateData[param]) {
+                    objectsEqual = false;
+                    break;
+                }
+            }
+            // that.log("Equal", objectsEqual);
+            return objectsEqual;
+        }
+
+        statusemitter.on("statuspoll", function (responseBody) {
+                var binaryState;
+                this.log("Status Config On", this.status_on);
+                    var customStatusOn = this.status_on;
+                    var customStatusOff = this.status_off;
+                    var statusOn, statusOff;
+
+                    // Check to see if custom states are a json object and if so compare to see if either one matches the state response
+              		const radio = new wifiradio(this.ip, "1234");
+              		
+              	              			              		
+    				 radio.getPower() .then(function(response) {
+						if (response == "1") {
+   						     binaryState = 1;
+
+  					  }
+   						 // else binaryState = 0;
+ 						  if (response == "0") {
+ 						  binaryState = 0;
+
+   						 }
+    					console.log(response);
+    					callback(null, binaryState);
+						})
+            that.state = binaryState > 0;
+            that.log(that.service, "received power", that.status_url, "state is currently", binaryState);
+            // switch used to easily add additonal services
+            that.enableSet = false;
+            switch (that.service) {
+                case "Switch":
+                    if (that.switchService) {
+                        that.switchService.getCharacteristic(Characteristic.On)
+                        .setValue(that.state);
                     }
-                         // else binaryState = 0;
-                      if (response == "0") {
-                           binaryState = 0;
-
+                    break;
+                case "Light":
+                    if (that.lightbulbService) {
+                        that.lightbulbService.getCharacteristic(Characteristic.On)
+                        .setValue(that.state);
                     }
-                         
-                    binaryState = 10;
-                    this.status_on = binaryState;
-                    //this.log("Status Config On", this.status_on);
-
-                  this.log(response);
-                    callback(null, binaryState);
-                    done(response);
-
-                        })
-}, {
-  longpolling: true, interval: 300, longpollEventName: "longpoll"
-});
-
-emitter.on("longpoll", function(data) {
-
-console.log("Longpoll");
-  
-  
-});
-
+                    break;
+            }
+            that.enableSet = true;
+        });
 
     }
     // Brightness Polling
@@ -288,7 +305,6 @@ HttpAccessory.prototype = {
         }
     }
 };
-
 
 
 

@@ -22,7 +22,7 @@ Plugin updates the status once you open the app, working on real time status upd
 ```
 "accessories": [ 
 	{
-		"accessory": "homebridge-frontier-silicon",
+		"accessory": "frontier-silicon",
 		"name": "Radio",
 		"ip": "192.168.1.10"
    } 
