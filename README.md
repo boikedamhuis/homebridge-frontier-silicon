@@ -3,10 +3,9 @@
 
 [![Build Status](https://travis-ci.org/boikedamhuis/homebridge-frontier-silicon.svg?branch=master)](https://travis-ci.org/boikedamhuis/homebridge-frontier-silicon)
 
-# homebridge-frontier-silicon
+# homebridge-frontier-silicon-plugin
 
 A Frontier Silicon plugin for homebridge (https://github.com/nfarina/homebridge) which integrates Frontier Silicon enabled devices with Homekit.
-
 Plugin updates the status once you open the app, working on real time status updates. Stay tuned :)
 
 # Installation
