@@ -21,11 +21,13 @@ function FrontierSiliconAccessory(log, config) {
   this.ip = config.ip;
   this.pin = String(config.pin ?? "1234");
   this.pollIntervalSeconds = Number(config.pollIntervalSeconds ?? 5);
+
+  // Keep volume enabled by default. This now uses a Speaker service.
   this.enableVolume = config.enableVolume !== false;
 
   this.lastKnownPower = null;
 
-  // This stores the last known radio volume (0..100, device scale)
+  // Store last known RADIO volume in device scale 0..100
   this.lastKnownRadioVolume = null;
 
   if (!this.ip) {
@@ -38,39 +40,45 @@ function FrontierSiliconAccessory(log, config) {
     log: this.log
   });
 
-  this.switchService = new Service.Switch(this.name);
+  this.informationService = new Service.AccessoryInformation()
+    .setCharacteristic(Characteristic.Manufacturer, "Frontier Silicon")
+    .setCharacteristic(Characteristic.Model, "FSAPI Radio")
+    .setCharacteristic(Characteristic.SerialNumber, this.ip || "unknown");
 
+  // Power as Switch (kept as-is for maximum Home app compatibility)
+  this.switchService = new Service.Switch(this.name);
   this.switchService
     .getCharacteristic(Characteristic.On)
     .on("get", this.handleGetPower.bind(this))
     .on("set", this.handleSetPower.bind(this));
 
+  // Speaker service for volume (and optional mute)
   if (this.enableVolume) {
-    // Volume is exposed as a separate slider using Lightbulb Brightness
-    this.volumeService = new Service.Lightbulb(this.name + " Volume");
+    this.speakerService = new Service.Speaker(this.name + " Speaker");
 
-    this.volumeService
-      .getCharacteristic(Characteristic.On)
-      .on("get", (cb) => cb(null, true))
-      .on("set", (_val, cb) => cb(null));
-
-    this.volumeService
-      .getCharacteristic(Characteristic.Brightness)
+    // Volume characteristic uses HomeKit scale 0..100
+    this.speakerService
+      .getCharacteristic(Characteristic.Volume)
       .on("get", this.handleGetVolume.bind(this))
       .on("set", this.handleSetVolume.bind(this));
-  }
 
-  this.informationService = new Service.AccessoryInformation()
-    .setCharacteristic(Characteristic.Manufacturer, "Frontier Silicon")
-    .setCharacteristic(Characteristic.Model, "FSAPI Radio")
-    .setCharacteristic(Characteristic.SerialNumber, this.ip || "unknown");
+    // Optional mute support placeholder:
+    // If you want real mute later, we can map this to an FSAPI endpoint if available.
+    // For now, we expose mute but keep it non-functional (always false) to avoid confusion.
+    if (Characteristic.Mute) {
+      this.speakerService
+        .getCharacteristic(Characteristic.Mute)
+        .on("get", (cb) => cb(null, false))
+        .on("set", (_val, cb) => cb(null));
+    }
+  }
 
   this.startPolling();
 }
 
 FrontierSiliconAccessory.prototype.getServices = function () {
   const services = [this.informationService, this.switchService];
-  if (this.enableVolume && this.volumeService) services.push(this.volumeService);
+  if (this.enableVolume && this.speakerService) services.push(this.speakerService);
   return services;
 };
 
@@ -142,14 +150,14 @@ FrontierSiliconAccessory.prototype.startPolling = function () {
       if (this.log.debug) this.log.debug("Polling power failed.", toMsg(err));
     }
 
-    if (this.enableVolume && this.volumeService) {
+    if (this.enableVolume && this.speakerService) {
       try {
         const radioVol = await this.client.getVolume();
         if (this.lastKnownRadioVolume !== radioVol) {
           this.lastKnownRadioVolume = radioVol;
           const homekitVol = radioToHomekitVolume(radioVol);
-          this.volumeService
-            .getCharacteristic(Characteristic.Brightness)
+          this.speakerService
+            .getCharacteristic(Characteristic.Volume)
             .updateValue(homekitVol);
         }
       } catch (err) {
@@ -179,7 +187,6 @@ FsApiClient.prototype.getPower = async function () {
 
 FsApiClient.prototype.setPower = async function (on) {
   const v = on ? 1 : 0;
-  // Important: SET must start query with ?value= so pin can be appended with &
   await this.fetchText("/fsapi/SET/netRemote.sys.power?value=" + v);
 };
 
@@ -191,7 +198,6 @@ FsApiClient.prototype.getVolume = async function () {
 
 FsApiClient.prototype.setVolume = async function (volume) {
   const v = clampInt(Number(volume), 0, 100);
-  // Important: SET must start query with ?value= so pin can be appended with &
   await this.fetchText("/fsapi/SET/netRemote.sys.audio.volume?value=" + v);
 };
 
