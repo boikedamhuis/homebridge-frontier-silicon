@@ -3,6 +3,8 @@
 
 [![Build Status](https://travis-ci.org/boikedamhuis/homebridge-frontier-silicon.svg?branch=master)](https://travis-ci.org/boikedamhuis/homebridge-frontier-silicon)
 
+![npm](https://img.shields.io/npm/dm/homebridge-frontier-silicon-plugin)
+
 # Homebridge Frontier Silicon Plugin
 
 This Homebridge plugin adds basic but reliable HomeKit support for Frontier Silicon based internet radios using the native FSAPI interface.
