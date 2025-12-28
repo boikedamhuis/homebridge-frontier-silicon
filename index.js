@@ -24,15 +24,25 @@ function FrontierSiliconAccessory(log, config) {
 
   this.enableVolume = config.enableVolume !== false;
 
+  // Keep both by default
   this.exposeSpeakerService = config.exposeSpeakerService !== false;
   this.exposeVolumeSlider = config.exposeVolumeSlider !== false;
 
+  // When selecting a station, power on first
   this.autoPowerOnOnPreset = config.autoPowerOnOnPreset !== false;
 
+  // Stations: [{ name: "Radio 2", preset: 0 }, ...]
+  // Important: preset numbers refer to the radio preset slots.
+  // If the radio says "empty preset", store that station to that preset slot on the radio first.
   this.stations = Array.isArray(config.stations) ? config.stations : [];
 
   this.lastKnownPower = null;
+
+  // Store last known RADIO volume on device scale 0..100
   this.lastKnownRadioVolume = null;
+
+  // We cannot reliably read current preset index on all firmwares.
+  // We track what we last selected via HomeKit and sync switches accordingly.
   this.lastKnownPresetIndex = null;
 
   this.isUpdatingStationSwitches = false;
@@ -52,12 +62,14 @@ function FrontierSiliconAccessory(log, config) {
     .setCharacteristic(Characteristic.Model, "FSAPI Radio")
     .setCharacteristic(Characteristic.SerialNumber, this.ip || "unknown");
 
+  // Power switch
   this.switchService = new Service.Switch(this.name);
   this.switchService
     .getCharacteristic(Characteristic.On)
     .on("get", this.handleGetPower.bind(this))
     .on("set", this.handleSetPower.bind(this));
 
+  // Volume services
   if (this.enableVolume) {
     if (this.exposeSpeakerService) {
       this.speakerService = new Service.Speaker(this.name + " Speaker");
@@ -90,9 +102,8 @@ function FrontierSiliconAccessory(log, config) {
     }
   }
 
+  // Station switches
   this.stationServices = [];
-  this.stationServiceByPreset = new Map();
-
   this.buildStationServices();
 
   this.startPolling();
@@ -112,7 +123,9 @@ FrontierSiliconAccessory.prototype.buildStationServices = function () {
     if (!stationName) continue;
     if (!Number.isFinite(preset)) continue;
 
-    const subtype = "preset_" + String(Math.trunc(preset));
+    const p = Math.trunc(preset);
+    const subtype = "preset_" + String(p);
+
     if (seenSubtypes.has(subtype)) continue;
     seenSubtypes.add(subtype);
 
@@ -120,15 +133,14 @@ FrontierSiliconAccessory.prototype.buildStationServices = function () {
 
     sw.getCharacteristic(Characteristic.On)
       .on("get", (cb) => {
-        const isOn = this.lastKnownPresetIndex === Math.trunc(preset);
+        const isOn = this.lastKnownPresetIndex === p;
         cb(null, isOn);
       })
       .on("set", (value, cb) => {
-        this.handleSetStationPreset(Math.trunc(preset), !!value, cb);
+        this.handleSetStationPreset(p, !!value, cb);
       });
 
-    this.stationServices.push({ preset: Math.trunc(preset), name: stationName, service: sw });
-    this.stationServiceByPreset.set(Math.trunc(preset), sw);
+    this.stationServices.push({ preset: p, name: stationName, service: sw });
   }
 };
 
@@ -213,13 +225,15 @@ FrontierSiliconAccessory.prototype.handleSetStationPreset = async function (pres
         this.lastKnownPower = true;
         this.switchService.getCharacteristic(Characteristic.On).updateValue(true);
       } catch (_e) {
+        // ignore
       }
     }
 
     await this.client.setPresetIndex(preset);
-    this.lastKnownPresetIndex = preset;
 
+    this.lastKnownPresetIndex = preset;
     this.syncStationSwitchesFromPreset(preset);
+
     callback(null);
   } catch (err) {
     this.log.warn("Preset set failed.", toMsg(err));
@@ -280,17 +294,10 @@ FrontierSiliconAccessory.prototype.startPolling = function () {
       }
     }
 
-    if (this.stationServices && this.stationServices.length > 0) {
-      try {
-        const preset = await this.client.getPresetIndex();
-        if (Number.isFinite(preset) && this.lastKnownPresetIndex !== preset) {
-          this.lastKnownPresetIndex = preset;
-          this.syncStationSwitchesFromPreset(preset);
-        }
-      } catch (err) {
-        if (this.log.debug) this.log.debug("Polling preset failed.", toMsg(err));
-      }
-    }
+    // Preset polling is intentionally not implemented for this firmware,
+    // because netRemote.sys.preset.index does not exist.
+    // If you want full sync from the radio front panel later,
+    // we can add alternative detection based on play.info nodes.
   };
 
   tick();
@@ -328,15 +335,14 @@ FsApiClient.prototype.setVolume = async function (volume) {
   await this.fetchText("/fsapi/SET/netRemote.sys.audio.volume?value=" + v);
 };
 
-FsApiClient.prototype.getPresetIndex = async function () {
-  const text = await this.fetchText("/fsapi/GET/netRemote.sys.preset.index");
-  const value = parseFsapiValue(text);
-  const n = Number(value);
-  return Number.isFinite(n) ? Math.trunc(n) : null;
-};
-
+// DIR3010 style preset selection via navigation state
 FsApiClient.prototype.setPresetIndex = async function (preset) {
-  await this.fetchText("/fsapi/SET/netRemote.sys.preset.index?value=" + encodeURIComponent(String(preset)));
+  const p = Math.trunc(Number(preset));
+  if (!Number.isFinite(p)) throw new Error("Invalid preset");
+
+  await this.fetchText("/fsapi/SET/netRemote.nav.state?value=1");
+  await this.fetchText("/fsapi/SET/netRemote.nav.action.selectPreset?value=" + encodeURIComponent(String(p)));
+  await this.fetchText("/fsapi/SET/netRemote.nav.state?value=0");
 };
 
 FsApiClient.prototype.fetchText = async function (pathAndQuery) {
@@ -399,6 +405,7 @@ function toMsg(err) {
   return String(err);
 }
 
+// Non linear volume mapping
 function homekitToRadioVolume(homekitValue) {
   const x = clampInt(Number(homekitValue), 0, 100) / 100;
   return clampInt(Math.round(Math.pow(x, 2) * 100), 0, 100);
