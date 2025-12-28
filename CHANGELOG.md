@@ -4,6 +4,17 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog, and this project follows Semantic Versioning.
 
+## [1.2.0] – 2025-12-28
+
+### Added
+- Station selection via HomeKit using preset-based switches.
+- Optional native HomeKit Speaker service alongside Apple Home volume slider.
+- Configurable station list in Homebridge UI mapped to radio presets.
+
+### Improved
+- Better HomeKit usability for audio devices.
+- Volume control remains visible in Apple Home while supporting proper audio semantics.
+
 ## [1.1.0] – 2025-12-28
 
 ### Added

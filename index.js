@@ -24,16 +24,18 @@ function FrontierSiliconAccessory(log, config) {
 
   this.enableVolume = config.enableVolume !== false;
 
-  // In 1.1.0 we expose both by default
-  // Speaker service is for correct semantics
-  // Lightbulb slider is for Apple Home app usability
   this.exposeSpeakerService = config.exposeSpeakerService !== false;
   this.exposeVolumeSlider = config.exposeVolumeSlider !== false;
 
-  this.lastKnownPower = null;
+  this.autoPowerOnOnPreset = config.autoPowerOnOnPreset !== false;
 
-  // Store last known RADIO volume on device scale 0..100
+  this.stations = Array.isArray(config.stations) ? config.stations : [];
+
+  this.lastKnownPower = null;
   this.lastKnownRadioVolume = null;
+  this.lastKnownPresetIndex = null;
+
+  this.isUpdatingStationSwitches = false;
 
   if (!this.ip) {
     this.log.warn("No ip configured, accessory will not work.");
@@ -50,7 +52,6 @@ function FrontierSiliconAccessory(log, config) {
     .setCharacteristic(Characteristic.Model, "FSAPI Radio")
     .setCharacteristic(Characteristic.SerialNumber, this.ip || "unknown");
 
-  // Power as Switch
   this.switchService = new Service.Switch(this.name);
   this.switchService
     .getCharacteristic(Characteristic.On)
@@ -66,8 +67,6 @@ function FrontierSiliconAccessory(log, config) {
         .on("get", this.handleGetVolume.bind(this))
         .on("set", this.handleSetVolume.bind(this));
 
-      // Optional mute placeholder, kept non functional by design
-      // Some radios support mute through FSAPI, but that endpoint differs per model
       if (Characteristic.Mute) {
         this.speakerService
           .getCharacteristic(Characteristic.Mute)
@@ -77,7 +76,6 @@ function FrontierSiliconAccessory(log, config) {
     }
 
     if (this.exposeVolumeSlider) {
-      // Slider that works in Apple Home app
       this.volumeSliderService = new Service.Lightbulb(this.name + " Volume");
 
       this.volumeSliderService
@@ -92,14 +90,55 @@ function FrontierSiliconAccessory(log, config) {
     }
   }
 
+  this.stationServices = [];
+  this.stationServiceByPreset = new Map();
+
+  this.buildStationServices();
+
   this.startPolling();
 }
+
+FrontierSiliconAccessory.prototype.buildStationServices = function () {
+  if (!Array.isArray(this.stations) || this.stations.length === 0) return;
+
+  const seenSubtypes = new Set();
+
+  for (const s of this.stations) {
+    if (!s || typeof s !== "object") continue;
+
+    const stationName = String(s.name ?? "").trim();
+    const preset = Number(s.preset);
+
+    if (!stationName) continue;
+    if (!Number.isFinite(preset)) continue;
+
+    const subtype = "preset_" + String(Math.trunc(preset));
+    if (seenSubtypes.has(subtype)) continue;
+    seenSubtypes.add(subtype);
+
+    const sw = new Service.Switch(stationName, subtype);
+
+    sw.getCharacteristic(Characteristic.On)
+      .on("get", (cb) => {
+        const isOn = this.lastKnownPresetIndex === Math.trunc(preset);
+        cb(null, isOn);
+      })
+      .on("set", (value, cb) => {
+        this.handleSetStationPreset(Math.trunc(preset), !!value, cb);
+      });
+
+    this.stationServices.push({ preset: Math.trunc(preset), name: stationName, service: sw });
+    this.stationServiceByPreset.set(Math.trunc(preset), sw);
+  }
+};
 
 FrontierSiliconAccessory.prototype.getServices = function () {
   const services = [this.informationService, this.switchService];
 
   if (this.enableVolume && this.speakerService) services.push(this.speakerService);
   if (this.enableVolume && this.volumeSliderService) services.push(this.volumeSliderService);
+
+  for (const s of this.stationServices) services.push(s.service);
 
   return services;
 };
@@ -155,6 +194,55 @@ FrontierSiliconAccessory.prototype.handleSetVolume = async function (value, call
   }
 };
 
+FrontierSiliconAccessory.prototype.handleSetStationPreset = async function (preset, turnOn, callback) {
+  if (this.isUpdatingStationSwitches) {
+    callback(null);
+    return;
+  }
+
+  if (!turnOn) {
+    callback(null);
+    this.syncStationSwitchesFromPreset(this.lastKnownPresetIndex);
+    return;
+  }
+
+  try {
+    if (this.autoPowerOnOnPreset) {
+      try {
+        await this.client.setPower(true);
+        this.lastKnownPower = true;
+        this.switchService.getCharacteristic(Characteristic.On).updateValue(true);
+      } catch (_e) {
+      }
+    }
+
+    await this.client.setPresetIndex(preset);
+    this.lastKnownPresetIndex = preset;
+
+    this.syncStationSwitchesFromPreset(preset);
+    callback(null);
+  } catch (err) {
+    this.log.warn("Preset set failed.", toMsg(err));
+    callback(null);
+    this.syncStationSwitchesFromPreset(this.lastKnownPresetIndex);
+  }
+};
+
+FrontierSiliconAccessory.prototype.syncStationSwitchesFromPreset = function (presetIndex) {
+  if (!this.stationServices || this.stationServices.length === 0) return;
+
+  this.isUpdatingStationSwitches = true;
+
+  try {
+    for (const s of this.stationServices) {
+      const shouldBeOn = presetIndex === s.preset;
+      s.service.getCharacteristic(Characteristic.On).updateValue(shouldBeOn);
+    }
+  } finally {
+    this.isUpdatingStationSwitches = false;
+  }
+};
+
 FrontierSiliconAccessory.prototype.startPolling = function () {
   if (!this.ip) return;
 
@@ -174,26 +262,33 @@ FrontierSiliconAccessory.prototype.startPolling = function () {
     if (this.enableVolume) {
       try {
         const radioVol = await this.client.getVolume();
-
         if (this.lastKnownRadioVolume !== radioVol) {
           this.lastKnownRadioVolume = radioVol;
 
           const homekitVol = radioToHomekitVolume(radioVol);
 
           if (this.speakerService) {
-            this.speakerService
-              .getCharacteristic(Characteristic.Volume)
-              .updateValue(homekitVol);
+            this.speakerService.getCharacteristic(Characteristic.Volume).updateValue(homekitVol);
           }
 
           if (this.volumeSliderService) {
-            this.volumeSliderService
-              .getCharacteristic(Characteristic.Brightness)
-              .updateValue(homekitVol);
+            this.volumeSliderService.getCharacteristic(Characteristic.Brightness).updateValue(homekitVol);
           }
         }
       } catch (err) {
         if (this.log.debug) this.log.debug("Polling volume failed.", toMsg(err));
+      }
+    }
+
+    if (this.stationServices && this.stationServices.length > 0) {
+      try {
+        const preset = await this.client.getPresetIndex();
+        if (Number.isFinite(preset) && this.lastKnownPresetIndex !== preset) {
+          this.lastKnownPresetIndex = preset;
+          this.syncStationSwitchesFromPreset(preset);
+        }
+      } catch (err) {
+        if (this.log.debug) this.log.debug("Polling preset failed.", toMsg(err));
       }
     }
   };
@@ -231,6 +326,17 @@ FsApiClient.prototype.getVolume = async function () {
 FsApiClient.prototype.setVolume = async function (volume) {
   const v = clampInt(Number(volume), 0, 100);
   await this.fetchText("/fsapi/SET/netRemote.sys.audio.volume?value=" + v);
+};
+
+FsApiClient.prototype.getPresetIndex = async function () {
+  const text = await this.fetchText("/fsapi/GET/netRemote.sys.preset.index");
+  const value = parseFsapiValue(text);
+  const n = Number(value);
+  return Number.isFinite(n) ? Math.trunc(n) : null;
+};
+
+FsApiClient.prototype.setPresetIndex = async function (preset) {
+  await this.fetchText("/fsapi/SET/netRemote.sys.preset.index?value=" + encodeURIComponent(String(preset)));
 };
 
 FsApiClient.prototype.fetchText = async function (pathAndQuery) {

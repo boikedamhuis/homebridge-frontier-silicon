@@ -3,7 +3,7 @@
   "pluginType": "accessory",
   "singular": false,
   "headerDisplay": "Frontier Silicon FSAPI radios",
-  "footerDisplay": "Tip: most devices use PIN 1234. If the device is offline, Homebridge will keep the last known state and recover automatically.",
+  "footerDisplay": "Presets must be saved on the radio first. The plugin switches between preset numbers.",
   "schema": {
     "type": "object",
     "required": ["name", "ip"],
@@ -45,13 +45,43 @@
         "title": "Expose Speaker service",
         "type": "boolean",
         "default": true,
-        "description": "Adds a native HomeKit Speaker service using the Volume characteristic. Some apps show this, Apple Home often does not."
+        "description": "Adds a native HomeKit Speaker service using the Volume characteristic."
       },
       "exposeVolumeSlider": {
         "title": "Expose Apple Home volume slider",
         "type": "boolean",
         "default": true,
         "description": "Adds a Lightbulb Brightness slider for volume control that is visible in the Apple Home app."
+      },
+      "autoPowerOnOnPreset": {
+        "title": "Power on when selecting a station",
+        "type": "boolean",
+        "default": true,
+        "description": "When you turn on a station switch, the radio will be powered on first."
+      },
+      "stations": {
+        "title": "Stations",
+        "type": "array",
+        "description": "List of station switches mapped to preset numbers. Save the stations to presets on the radio first.",
+        "items": {
+          "type": "object",
+          "required": ["name", "preset"],
+          "properties": {
+            "name": {
+              "title": "Station name",
+              "type": "string",
+              "default": "Radio 2"
+            },
+            "preset": {
+              "title": "Preset number",
+              "type": "integer",
+              "default": 1,
+              "minimum": 0,
+              "maximum": 99
+            }
+          }
+        },
+        "default": []
       }
     }
   },
@@ -62,10 +92,20 @@
     "pollIntervalSeconds",
     "enableVolume",
     "exposeSpeakerService",
-    "exposeVolumeSlider"
+    "exposeVolumeSlider",
+    "autoPowerOnOnPreset",
+    {
+      "key": "stations",
+      "type": "array",
+      "title": "Stations",
+      "items": [
+        "stations[].name",
+        "stations[].preset"
+      ]
+    }
   ],
   "display": {
     "name": "Frontier Silicon Radio",
-    "description": "Control power and volume via FSAPI."
+    "description": "Control power, volume, and station presets via FSAPI."
   }
 }
