@@ -1,0 +1,29 @@
+{
+  "name": "homebridge-frontier-silicon-plugin",
+  "version": "1.0.0",
+  "description": "Homebridge plugin for Frontier Silicon FSAPI devices, power and volume with safe polling",
+  "license": "ISC",
+  "main": "index.js",
+  "keywords": [
+    "homebridge-pluginconfig.schema.json",
+    "homebridge",
+    "frontier",
+    "silicon",
+    "fsapi",
+    "internet-radio"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/boikedamhuis/homebridge-frontier-silicon"
+  },
+  "bugs": {
+    "url": "https://github.com/boikedamhuis/homebridge-frontier-silicon/issues"
+  },
+  "author": {
+    "name": "Boike Damhuis"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "homebridge": ">=1.6.0"
+  }
+}

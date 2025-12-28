@@ -169,7 +169,7 @@ FsApiClient.prototype.getPower = async function () {
 
 FsApiClient.prototype.setPower = async function (on) {
   const v = on ? 1 : 0;
-  await this.fetchText("/fsapi/SET/netRemote.sys.power&value=" + v);
+  await this.fetchText("/fsapi/SET/netRemote.sys.power?value=" + v);
 };
 
 FsApiClient.prototype.getVolume = async function () {
@@ -180,7 +180,7 @@ FsApiClient.prototype.getVolume = async function () {
 
 FsApiClient.prototype.setVolume = async function (volume) {
   const v = clampInt(Number(volume), 0, 100);
-  await this.fetchText("/fsapi/SET/netRemote.sys.audio.volume&value=" + v);
+  await this.fetchText("/fsapi/SET/netRemote.sys.audio.volume?value=" + v);
 };
 
 FsApiClient.prototype.fetchText = async function (pathAndQuery) {
