@@ -1,10 +1,16 @@
 {
   "name": "homebridge-frontier-silicon-plugin",
-  "version": "0.0.10",
-  "description": "Plugin for frontier silicon devices",
+  "version": "1.0.0",
+  "description": "Homebridge plugin for Frontier Silicon FSAPI devices, power and volume with safe polling",
   "license": "ISC",
+  "main": "index.js",
   "keywords": [
-    "homebridge-plugin"
+    "homebridge-plugin",
+    "homebridge",
+    "frontier",
+    "silicon",
+    "fsapi",
+    "internet-radio"
   ],
   "repository": {
     "type": "git",
@@ -17,7 +23,7 @@
     "name": "Boike Damhuis"
   },
   "engines": {
-    "node": ">=0.12.0",
-    "homebridge": ">=0.2.0"
+    "node": ">=18.0.0",
+    "homebridge": ">=1.6.0"
   }
 }
