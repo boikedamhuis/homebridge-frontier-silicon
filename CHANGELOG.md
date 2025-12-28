@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog, and this project follows Semantic Versioning.
 
+## [1.1.0] – 2025-12-28
+
+### Changed
+- Replaced the Lightbulb Brightness based volume control with a native HomeKit **Speaker** service.
+- Volume is now exposed using the official `Volume` characteristic.
+- Power and volume are logically separated, matching HomeKit audio device expectations.
+
+### Improved
+- More natural HomeKit UI for audio devices.
+- Better compatibility with HomeKit audio controls and third-party Home apps.
+- Non-linear volume mapping retained for precise low-volume control.
+
 ## [1.0.2] – 2025-12-28
 
 ### Changed
