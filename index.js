@@ -22,12 +22,17 @@ function FrontierSiliconAccessory(log, config) {
   this.pin = String(config.pin ?? "1234");
   this.pollIntervalSeconds = Number(config.pollIntervalSeconds ?? 5);
 
-  // Keep volume enabled by default. This now uses a Speaker service.
   this.enableVolume = config.enableVolume !== false;
+
+  // In 1.1.0 we expose both by default
+  // Speaker service is for correct semantics
+  // Lightbulb slider is for Apple Home app usability
+  this.exposeSpeakerService = config.exposeSpeakerService !== false;
+  this.exposeVolumeSlider = config.exposeVolumeSlider !== false;
 
   this.lastKnownPower = null;
 
-  // Store last known RADIO volume in device scale 0..100
+  // Store last known RADIO volume on device scale 0..100
   this.lastKnownRadioVolume = null;
 
   if (!this.ip) {
@@ -45,31 +50,45 @@ function FrontierSiliconAccessory(log, config) {
     .setCharacteristic(Characteristic.Model, "FSAPI Radio")
     .setCharacteristic(Characteristic.SerialNumber, this.ip || "unknown");
 
-  // Power as Switch (kept as-is for maximum Home app compatibility)
+  // Power as Switch
   this.switchService = new Service.Switch(this.name);
   this.switchService
     .getCharacteristic(Characteristic.On)
     .on("get", this.handleGetPower.bind(this))
     .on("set", this.handleSetPower.bind(this));
 
-  // Speaker service for volume (and optional mute)
   if (this.enableVolume) {
-    this.speakerService = new Service.Speaker(this.name + " Speaker");
+    if (this.exposeSpeakerService) {
+      this.speakerService = new Service.Speaker(this.name + " Speaker");
 
-    // Volume characteristic uses HomeKit scale 0..100
-    this.speakerService
-      .getCharacteristic(Characteristic.Volume)
-      .on("get", this.handleGetVolume.bind(this))
-      .on("set", this.handleSetVolume.bind(this));
-
-    // Optional mute support placeholder:
-    // If you want real mute later, we can map this to an FSAPI endpoint if available.
-    // For now, we expose mute but keep it non-functional (always false) to avoid confusion.
-    if (Characteristic.Mute) {
       this.speakerService
-        .getCharacteristic(Characteristic.Mute)
-        .on("get", (cb) => cb(null, false))
+        .getCharacteristic(Characteristic.Volume)
+        .on("get", this.handleGetVolume.bind(this))
+        .on("set", this.handleSetVolume.bind(this));
+
+      // Optional mute placeholder, kept non functional by design
+      // Some radios support mute through FSAPI, but that endpoint differs per model
+      if (Characteristic.Mute) {
+        this.speakerService
+          .getCharacteristic(Characteristic.Mute)
+          .on("get", (cb) => cb(null, false))
+          .on("set", (_val, cb) => cb(null));
+      }
+    }
+
+    if (this.exposeVolumeSlider) {
+      // Slider that works in Apple Home app
+      this.volumeSliderService = new Service.Lightbulb(this.name + " Volume");
+
+      this.volumeSliderService
+        .getCharacteristic(Characteristic.On)
+        .on("get", (cb) => cb(null, true))
         .on("set", (_val, cb) => cb(null));
+
+      this.volumeSliderService
+        .getCharacteristic(Characteristic.Brightness)
+        .on("get", this.handleGetVolume.bind(this))
+        .on("set", this.handleSetVolume.bind(this));
     }
   }
 
@@ -78,7 +97,10 @@ function FrontierSiliconAccessory(log, config) {
 
 FrontierSiliconAccessory.prototype.getServices = function () {
   const services = [this.informationService, this.switchService];
+
   if (this.enableVolume && this.speakerService) services.push(this.speakerService);
+  if (this.enableVolume && this.volumeSliderService) services.push(this.volumeSliderService);
+
   return services;
 };
 
@@ -121,7 +143,6 @@ FrontierSiliconAccessory.prototype.handleGetVolume = async function (callback) {
 };
 
 FrontierSiliconAccessory.prototype.handleSetVolume = async function (value, callback) {
-  // Non linear mapping so low slider values are much softer
   const radioVol = homekitToRadioVolume(value);
 
   try {
@@ -150,15 +171,26 @@ FrontierSiliconAccessory.prototype.startPolling = function () {
       if (this.log.debug) this.log.debug("Polling power failed.", toMsg(err));
     }
 
-    if (this.enableVolume && this.speakerService) {
+    if (this.enableVolume) {
       try {
         const radioVol = await this.client.getVolume();
+
         if (this.lastKnownRadioVolume !== radioVol) {
           this.lastKnownRadioVolume = radioVol;
+
           const homekitVol = radioToHomekitVolume(radioVol);
-          this.speakerService
-            .getCharacteristic(Characteristic.Volume)
-            .updateValue(homekitVol);
+
+          if (this.speakerService) {
+            this.speakerService
+              .getCharacteristic(Characteristic.Volume)
+              .updateValue(homekitVol);
+          }
+
+          if (this.volumeSliderService) {
+            this.volumeSliderService
+              .getCharacteristic(Characteristic.Brightness)
+              .updateValue(homekitVol);
+          }
         }
       } catch (err) {
         if (this.log.debug) this.log.debug("Polling volume failed.", toMsg(err));
@@ -203,12 +235,7 @@ FsApiClient.prototype.setVolume = async function (volume) {
 
 FsApiClient.prototype.fetchText = async function (pathAndQuery) {
   const joiner = pathAndQuery.includes("?") ? "&" : "?";
-  const url =
-    this.baseUrl +
-    pathAndQuery +
-    joiner +
-    "pin=" +
-    encodeURIComponent(this.pin);
+  const url = this.baseUrl + pathAndQuery + joiner + "pin=" + encodeURIComponent(this.pin);
 
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), this.timeoutMs);
@@ -265,10 +292,6 @@ function toMsg(err) {
   if (err instanceof Error) return err.message;
   return String(err);
 }
-
-// Non linear volume mapping
-// HomeKit slider 0..100 is mapped to device volume 0..100
-// Low slider values become much softer, high end remains reachable
 
 function homekitToRadioVolume(homekitValue) {
   const x = clampInt(Number(homekitValue), 0, 100) / 100;

@@ -6,15 +6,17 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 
 ## [1.1.0] – 2025-12-28
 
+### Added
+1. Added an optional native HomeKit Speaker service for volume control using the Volume characteristic.
+2. Added configuration switches to expose the Speaker service and the Apple Home slider independently.
+
 ### Changed
-- Replaced the Lightbulb Brightness based volume control with a native HomeKit **Speaker** service.
-- Volume is now exposed using the official `Volume` characteristic.
-- Power and volume are logically separated, matching HomeKit audio device expectations.
+1. Volume can now be controlled through either the Speaker service, the Apple Home slider service, or both.
 
 ### Improved
-- More natural HomeKit UI for audio devices.
-- Better compatibility with HomeKit audio controls and third-party Home apps.
-- Non-linear volume mapping retained for precise low-volume control.
+1. Better compatibility with third party HomeKit apps via the Speaker service.
+2. Apple Home usability retained via the Brightness based slider.
+3. Non linear volume mapping remains for precise low volume control.
 
 ## [1.0.2] – 2025-12-28
 

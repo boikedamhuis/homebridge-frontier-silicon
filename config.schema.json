@@ -1,29 +1,71 @@
 {
-  "name": "homebridge-frontier-silicon-plugin",
-  "version": "1.0.0",
-  "description": "Homebridge plugin for Frontier Silicon FSAPI devices, power and volume with safe polling",
-  "license": "ISC",
-  "main": "index.js",
-  "keywords": [
-    "homebridge-pluginconfig.schema.json",
-    "homebridge",
-    "frontier",
-    "silicon",
-    "fsapi",
-    "internet-radio"
+  "pluginAlias": "frontier-silicon",
+  "pluginType": "accessory",
+  "singular": false,
+  "headerDisplay": "Frontier Silicon FSAPI radios",
+  "footerDisplay": "Tip: most devices use PIN 1234. If the device is offline, Homebridge will keep the last known state and recover automatically.",
+  "schema": {
+    "type": "object",
+    "required": ["name", "ip"],
+    "properties": {
+      "name": {
+        "title": "Name",
+        "type": "string",
+        "default": "Living Room Radio",
+        "description": "The name shown in HomeKit."
+      },
+      "ip": {
+        "title": "IP Address",
+        "type": "string",
+        "default": "192.168.1.50",
+        "description": "The IP address of the radio on your network.",
+        "pattern": "^(?:(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\.){3}(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)$"
+      },
+      "pin": {
+        "title": "FSAPI PIN",
+        "type": "string",
+        "default": "1234",
+        "description": "FSAPI PIN for the radio. Default is usually 1234."
+      },
+      "pollIntervalSeconds": {
+        "title": "Poll interval (seconds)",
+        "type": "integer",
+        "default": 5,
+        "minimum": 2,
+        "maximum": 120,
+        "description": "How often to poll the device for updates."
+      },
+      "enableVolume": {
+        "title": "Enable volume control",
+        "type": "boolean",
+        "default": true,
+        "description": "Enable volume support."
+      },
+      "exposeSpeakerService": {
+        "title": "Expose Speaker service",
+        "type": "boolean",
+        "default": true,
+        "description": "Adds a native HomeKit Speaker service using the Volume characteristic. Some apps show this, Apple Home often does not."
+      },
+      "exposeVolumeSlider": {
+        "title": "Expose Apple Home volume slider",
+        "type": "boolean",
+        "default": true,
+        "description": "Adds a Lightbulb Brightness slider for volume control that is visible in the Apple Home app."
+      }
+    }
+  },
+  "form": [
+    "name",
+    "ip",
+    "pin",
+    "pollIntervalSeconds",
+    "enableVolume",
+    "exposeSpeakerService",
+    "exposeVolumeSlider"
   ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/boikedamhuis/homebridge-frontier-silicon"
-  },
-  "bugs": {
-    "url": "https://github.com/boikedamhuis/homebridge-frontier-silicon/issues"
-  },
-  "author": {
-    "name": "Boike Damhuis"
-  },
-  "engines": {
-    "node": ">=18.0.0",
-    "homebridge": ">=1.6.0"
+  "display": {
+    "name": "Frontier Silicon Radio",
+    "description": "Control power and volume via FSAPI."
   }
 }
