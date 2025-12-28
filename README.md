@@ -95,47 +95,35 @@ If you successfully use this plugin with a radio that is not listed above, pleas
 
 ## Installation
 
-Install the plugin globally using npm
+### Recommended: Install via Homebridge UI
 
-    npm install -g homebridge-frontier-silicon-plugin
+This plugin can be installed and configured entirely through the **Homebridge Config UI X**.
+No manual JSON editing is required.
 
-After installation, restart Homebridge.
+1. Open the Homebridge UI in your browser
+2. Go to **Plugins**
+3. Search for **homebridge-frontier-silicon-plugin**
+4. Click **Install**
+5. After installation, go to **Settings → Accessories**
+6. Add a new accessory and select **Frontier Silicon Radio**
+7. Fill in the required fields:
+   - Name
+   - IP address of the radio
+   - FSAPI PIN (default is usually `1234`)
+8. (Optional) Configure volume options and station presets via the UI
+9. Save the configuration and **restart Homebridge**
 
-## Configuration
+After the restart, the radio and its controls will appear in the Apple Home app.
 
-Add the accessory to your Homebridge configuration.
+---
 
-### Example configuration
+### Manual installation (advanced / development)
 
-    {
-      "accessory": "frontier-silicon",
-      "name": "Living Room Radio",
-      "ip": "192.168.1.50",
-      "pin": "1234",
-      "pollIntervalSeconds": 5,
-      "enableVolume": true
-    }
+If you prefer installing via the command line:
 
-## Configuration options
+```bash
+npm install -g homebridge-frontier-silicon-plugin
 
-name  
-Displayed name in HomeKit  
-
-ip  
-IP address of the radio  
-
-pin  
-FSAPI PIN code  
-Default is 1234 on most devices  
-
-pollIntervalSeconds  
-Polling interval in seconds  
-Minimum value is 2  
-Default value is 5  
-
-enableVolume  
-Enable volume control  
-Default is true  
 
 ## HomeKit behaviour
 
