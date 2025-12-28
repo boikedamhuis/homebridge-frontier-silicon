@@ -4,6 +4,17 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog, and this project follows Semantic Versioning.
 
+## [1.2.1] – 2025-12-28
+
+### Fixed
+- Corrected preset numbering by mapping Homebridge presets (1-based) to Frontier Silicon FSAPI keys (0-based).
+- Ensured station preset switches behave exclusively (activating one station automatically deactivates the others).
+- Fixed incorrect preset selection where presets were offset by one position on the radio.
+
+### Improved
+- More reliable DAB+ / preset switching on Frontier Silicon radios using navigation-based FSAPI calls.
+- Better HomeKit UI consistency when switching between stations.
+
 ## [1.2.0] – 2025-12-28
 
 ### Added

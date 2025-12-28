@@ -24,26 +24,20 @@ function FrontierSiliconAccessory(log, config) {
 
   this.enableVolume = config.enableVolume !== false;
 
-  // Keep both by default
   this.exposeSpeakerService = config.exposeSpeakerService !== false;
   this.exposeVolumeSlider = config.exposeVolumeSlider !== false;
 
-  // When selecting a station, power on first
   this.autoPowerOnOnPreset = config.autoPowerOnOnPreset !== false;
 
-  // Stations: [{ name: "Radio 2", preset: 0 }, ...]
-  // Important: preset numbers refer to the radio preset slots.
-  // If the radio says "empty preset", store that station to that preset slot on the radio first.
+  // stations: [{ name: "Radio 2", preset: 2 }, ...]
+  // preset is 1 based like the radio UI, internally we convert to 0 based presetKey for FSAPI
   this.stations = Array.isArray(config.stations) ? config.stations : [];
 
   this.lastKnownPower = null;
-
-  // Store last known RADIO volume on device scale 0..100
   this.lastKnownRadioVolume = null;
 
-  // We cannot reliably read current preset index on all firmwares.
-  // We track what we last selected via HomeKit and sync switches accordingly.
-  this.lastKnownPresetIndex = null;
+  // 0 based FSAPI preset key that we last selected via HomeKit
+  this.lastKnownPresetKey = null;
 
   this.isUpdatingStationSwitches = false;
 
@@ -62,14 +56,12 @@ function FrontierSiliconAccessory(log, config) {
     .setCharacteristic(Characteristic.Model, "FSAPI Radio")
     .setCharacteristic(Characteristic.SerialNumber, this.ip || "unknown");
 
-  // Power switch
   this.switchService = new Service.Switch(this.name);
   this.switchService
     .getCharacteristic(Characteristic.On)
     .on("get", this.handleGetPower.bind(this))
     .on("set", this.handleSetPower.bind(this));
 
-  // Volume services
   if (this.enableVolume) {
     if (this.exposeSpeakerService) {
       this.speakerService = new Service.Speaker(this.name + " Speaker");
@@ -102,7 +94,6 @@ function FrontierSiliconAccessory(log, config) {
     }
   }
 
-  // Station switches
   this.stationServices = [];
   this.buildStationServices();
 
@@ -118,14 +109,16 @@ FrontierSiliconAccessory.prototype.buildStationServices = function () {
     if (!s || typeof s !== "object") continue;
 
     const stationName = String(s.name ?? "").trim();
-    const preset = Number(s.preset);
+    const presetUi = Number(s.preset);
 
     if (!stationName) continue;
-    if (!Number.isFinite(preset)) continue;
+    if (!Number.isFinite(presetUi)) continue;
 
-    const p = Math.trunc(preset);
-    const subtype = "preset_" + String(p);
+    // Convert 1 based UI preset number to 0 based FSAPI key
+    const presetKey = Math.trunc(presetUi) - 1;
+    if (presetKey < 0) continue;
 
+    const subtype = "preset_" + String(presetKey);
     if (seenSubtypes.has(subtype)) continue;
     seenSubtypes.add(subtype);
 
@@ -133,14 +126,18 @@ FrontierSiliconAccessory.prototype.buildStationServices = function () {
 
     sw.getCharacteristic(Characteristic.On)
       .on("get", (cb) => {
-        const isOn = this.lastKnownPresetIndex === p;
-        cb(null, isOn);
+        cb(null, this.lastKnownPresetKey === presetKey);
       })
       .on("set", (value, cb) => {
-        this.handleSetStationPreset(p, !!value, cb);
+        this.handleSetStationPreset(presetKey, !!value, cb);
       });
 
-    this.stationServices.push({ preset: p, name: stationName, service: sw });
+    this.stationServices.push({
+      presetKey,
+      presetUi: Math.trunc(presetUi),
+      name: stationName,
+      service: sw
+    });
   }
 };
 
@@ -183,9 +180,7 @@ FrontierSiliconAccessory.prototype.handleGetVolume = async function (callback) {
   try {
     const radioVol = await this.client.getVolume();
     this.lastKnownRadioVolume = radioVol;
-
-    const homekitVol = radioToHomekitVolume(radioVol);
-    callback(null, homekitVol);
+    callback(null, radioToHomekitVolume(radioVol));
   } catch (err) {
     this.log.warn("Volume get failed, returning last known level.", toMsg(err));
     const fallbackRadio = this.lastKnownRadioVolume ?? 0;
@@ -206,17 +201,23 @@ FrontierSiliconAccessory.prototype.handleSetVolume = async function (value, call
   }
 };
 
-FrontierSiliconAccessory.prototype.handleSetStationPreset = async function (preset, turnOn, callback) {
+FrontierSiliconAccessory.prototype.handleSetStationPreset = async function (presetKey, turnOn, callback) {
   if (this.isUpdatingStationSwitches) {
     callback(null);
     return;
   }
 
+  // Exclusive selector behaviour
+  // Turning OFF does not change the radio, we snap back to the current selection
   if (!turnOn) {
     callback(null);
-    this.syncStationSwitchesFromPreset(this.lastKnownPresetIndex);
+    this.syncStationSwitchesFromPresetKey(this.lastKnownPresetKey);
     return;
   }
+
+  // Optimistic UI update so previous station immediately turns off
+  this.lastKnownPresetKey = presetKey;
+  this.syncStationSwitchesFromPresetKey(presetKey);
 
   try {
     if (this.autoPowerOnOnPreset) {
@@ -229,27 +230,26 @@ FrontierSiliconAccessory.prototype.handleSetStationPreset = async function (pres
       }
     }
 
-    await this.client.setPresetIndex(preset);
-
-    this.lastKnownPresetIndex = preset;
-    this.syncStationSwitchesFromPreset(preset);
+    await this.client.setPresetKey(presetKey);
 
     callback(null);
   } catch (err) {
     this.log.warn("Preset set failed.", toMsg(err));
     callback(null);
-    this.syncStationSwitchesFromPreset(this.lastKnownPresetIndex);
+
+    // Keep UI consistent with the last selection we know about
+    this.syncStationSwitchesFromPresetKey(this.lastKnownPresetKey);
   }
 };
 
-FrontierSiliconAccessory.prototype.syncStationSwitchesFromPreset = function (presetIndex) {
+FrontierSiliconAccessory.prototype.syncStationSwitchesFromPresetKey = function (presetKey) {
   if (!this.stationServices || this.stationServices.length === 0) return;
 
   this.isUpdatingStationSwitches = true;
 
   try {
     for (const s of this.stationServices) {
-      const shouldBeOn = presetIndex === s.preset;
+      const shouldBeOn = presetKey === s.presetKey;
       s.service.getCharacteristic(Characteristic.On).updateValue(shouldBeOn);
     }
   } finally {
@@ -278,7 +278,6 @@ FrontierSiliconAccessory.prototype.startPolling = function () {
         const radioVol = await this.client.getVolume();
         if (this.lastKnownRadioVolume !== radioVol) {
           this.lastKnownRadioVolume = radioVol;
-
           const homekitVol = radioToHomekitVolume(radioVol);
 
           if (this.speakerService) {
@@ -294,10 +293,8 @@ FrontierSiliconAccessory.prototype.startPolling = function () {
       }
     }
 
-    // Preset polling is intentionally not implemented for this firmware,
-    // because netRemote.sys.preset.index does not exist.
-    // If you want full sync from the radio front panel later,
-    // we can add alternative detection based on play.info nodes.
+    // Preset readback is not implemented for this firmware
+    // We keep station switch states based on the last selected presetKey via HomeKit
   };
 
   tick();
@@ -335,10 +332,10 @@ FsApiClient.prototype.setVolume = async function (volume) {
   await this.fetchText("/fsapi/SET/netRemote.sys.audio.volume?value=" + v);
 };
 
-// DIR3010 style preset selection via navigation state
-FsApiClient.prototype.setPresetIndex = async function (preset) {
-  const p = Math.trunc(Number(preset));
-  if (!Number.isFinite(p)) throw new Error("Invalid preset");
+// DIR3010 style preset selection using nav.state and selectPreset
+FsApiClient.prototype.setPresetKey = async function (presetKey) {
+  const p = Math.trunc(Number(presetKey));
+  if (!Number.isFinite(p)) throw new Error("Invalid preset key");
 
   await this.fetchText("/fsapi/SET/netRemote.nav.state?value=1");
   await this.fetchText("/fsapi/SET/netRemote.nav.action.selectPreset?value=" + encodeURIComponent(String(p)));
@@ -405,7 +402,6 @@ function toMsg(err) {
   return String(err);
 }
 
-// Non linear volume mapping
 function homekitToRadioVolume(homekitValue) {
   const x = clampInt(Number(homekitValue), 0, 100) / 100;
   return clampInt(Math.round(Math.pow(x, 2) * 100), 0, 100);
