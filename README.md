@@ -1,9 +1,6 @@
 
 
-
-[![Build Status](https://travis-ci.org/boikedamhuis/homebridge-frontier-silicon.svg?branch=master)](https://travis-ci.org/boikedamhuis/homebridge-frontier-silicon)
-
-![npm](https://img.shields.io/npm/dm/homebridge-frontier-silicon-plugin)
+![npm](https://img.shields.io/npm/dt/homebridge-frontier-silicon-plugin)
 
 # Homebridge Frontier Silicon Plugin
 
