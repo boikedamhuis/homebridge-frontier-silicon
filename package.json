@@ -1,6 +1,6 @@
 {
   "name": "homebridge-frontier-silicon-plugin",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "Homebridge plugin for Frontier Silicon FSAPI devices, power and volume with safe polling",
   "license": "ISC",
   "main": "index.js",
