@@ -24,7 +24,9 @@ function FrontierSiliconAccessory(log, config) {
   this.enableVolume = config.enableVolume !== false;
 
   this.lastKnownPower = null;
-  this.lastKnownVolume = null;
+
+  // This stores the last known radio volume (0..100, device scale)
+  this.lastKnownRadioVolume = null;
 
   if (!this.ip) {
     this.log.warn("No ip configured, accessory will not work.");
@@ -44,11 +46,13 @@ function FrontierSiliconAccessory(log, config) {
     .on("set", this.handleSetPower.bind(this));
 
   if (this.enableVolume) {
+    // Volume is exposed as a separate slider using Lightbulb Brightness
     this.volumeService = new Service.Lightbulb(this.name + " Volume");
+
     this.volumeService
       .getCharacteristic(Characteristic.On)
       .on("get", (cb) => cb(null, true))
-      .on("set", (val, cb) => cb(null));
+      .on("set", (_val, cb) => cb(null));
 
     this.volumeService
       .getCharacteristic(Characteristic.Brightness)
@@ -96,21 +100,25 @@ FrontierSiliconAccessory.prototype.handleSetPower = async function (value, callb
 
 FrontierSiliconAccessory.prototype.handleGetVolume = async function (callback) {
   try {
-    const vol = await this.client.getVolume();
-    this.lastKnownVolume = vol;
-    callback(null, vol);
+    const radioVol = await this.client.getVolume();
+    this.lastKnownRadioVolume = radioVol;
+
+    const homekitVol = radioToHomekitVolume(radioVol);
+    callback(null, homekitVol);
   } catch (err) {
     this.log.warn("Volume get failed, returning last known level.", toMsg(err));
-    callback(null, this.lastKnownVolume ?? 0);
+    const fallbackRadio = this.lastKnownRadioVolume ?? 0;
+    callback(null, radioToHomekitVolume(fallbackRadio));
   }
 };
 
 FrontierSiliconAccessory.prototype.handleSetVolume = async function (value, callback) {
-  const vol = clampInt(Number(value), 0, 100);
+  // Non linear mapping so low slider values are much softer
+  const radioVol = homekitToRadioVolume(value);
 
   try {
-    await this.client.setVolume(vol);
-    this.lastKnownVolume = vol;
+    await this.client.setVolume(radioVol);
+    this.lastKnownRadioVolume = radioVol;
     callback(null);
   } catch (err) {
     this.log.warn("Volume set failed, keeping last known level.", toMsg(err));
@@ -131,24 +139,26 @@ FrontierSiliconAccessory.prototype.startPolling = function () {
         this.switchService.getCharacteristic(Characteristic.On).updateValue(power);
       }
     } catch (err) {
-      this.log.debug ? this.log.debug("Polling power failed.", toMsg(err)) : this.log("Polling power failed.");
+      if (this.log.debug) this.log.debug("Polling power failed.", toMsg(err));
     }
 
     if (this.enableVolume && this.volumeService) {
       try {
-        const vol = await this.client.getVolume();
-        if (this.lastKnownVolume !== vol) {
-          this.lastKnownVolume = vol;
-          this.volumeService.getCharacteristic(Characteristic.Brightness).updateValue(vol);
+        const radioVol = await this.client.getVolume();
+        if (this.lastKnownRadioVolume !== radioVol) {
+          this.lastKnownRadioVolume = radioVol;
+          const homekitVol = radioToHomekitVolume(radioVol);
+          this.volumeService
+            .getCharacteristic(Characteristic.Brightness)
+            .updateValue(homekitVol);
         }
       } catch (err) {
-        this.log.debug ? this.log.debug("Polling volume failed.", toMsg(err)) : this.log("Polling volume failed.");
+        if (this.log.debug) this.log.debug("Polling volume failed.", toMsg(err));
       }
     }
   };
 
   tick();
-
   this.pollTimer = setInterval(tick, intervalMs);
 };
 
@@ -169,6 +179,7 @@ FsApiClient.prototype.getPower = async function () {
 
 FsApiClient.prototype.setPower = async function (on) {
   const v = on ? 1 : 0;
+  // Important: SET must start query with ?value= so pin can be appended with &
   await this.fetchText("/fsapi/SET/netRemote.sys.power?value=" + v);
 };
 
@@ -180,12 +191,18 @@ FsApiClient.prototype.getVolume = async function () {
 
 FsApiClient.prototype.setVolume = async function (volume) {
   const v = clampInt(Number(volume), 0, 100);
+  // Important: SET must start query with ?value= so pin can be appended with &
   await this.fetchText("/fsapi/SET/netRemote.sys.audio.volume?value=" + v);
 };
 
 FsApiClient.prototype.fetchText = async function (pathAndQuery) {
   const joiner = pathAndQuery.includes("?") ? "&" : "?";
-  const url = this.baseUrl + pathAndQuery + joiner + "pin=" + encodeURIComponent(this.pin);
+  const url =
+    this.baseUrl +
+    pathAndQuery +
+    joiner +
+    "pin=" +
+    encodeURIComponent(this.pin);
 
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), this.timeoutMs);
@@ -241,4 +258,18 @@ function toMsg(err) {
   if (!err) return "";
   if (err instanceof Error) return err.message;
   return String(err);
+}
+
+// Non linear volume mapping
+// HomeKit slider 0..100 is mapped to device volume 0..100
+// Low slider values become much softer, high end remains reachable
+
+function homekitToRadioVolume(homekitValue) {
+  const x = clampInt(Number(homekitValue), 0, 100) / 100;
+  return clampInt(Math.round(Math.pow(x, 2) * 100), 0, 100);
+}
+
+function radioToHomekitVolume(radioValue) {
+  const x = clampInt(Number(radioValue), 0, 100) / 100;
+  return clampInt(Math.round(Math.sqrt(x) * 100), 0, 100);
 }
