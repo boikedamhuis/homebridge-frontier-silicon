@@ -30,6 +30,69 @@ This plugin is designed as a modern replacement for older Frontier Silicon Homeb
 
 Most internet radios from brands such as Roberts, Ruark, Revo, Hama and similar use Frontier Silicon firmware and are compatible.
 
+## Tested and Compatible Radios
+
+This plugin is designed for radios based on the **Frontier Silicon FSAPI (NetRemote API)**.
+It has been tested or is known to work on a wide range of internet and DAB+ radios using this platform.
+
+### Known compatible brands and models (non-exhaustive)
+
+**Hama**
+- IR100
+- IR110
+- DIR3100 / DIR3110 series
+
+**Medion**
+- MD87180  
+- MD86988  
+- MD86955  
+- MD87528  
+
+**Roberts**
+- Stream 83i  
+- Stream 93i  
+
+**Ruark**
+- R2  
+- R5  
+
+**Revo**
+- SuperConnect  
+
+**Auna**
+- Connect 150  
+- Connect CD  
+- KR200  
+
+**TechniSat**
+- DIGITRADIO 350 IR  
+- DIGITRADIO 850  
+- VIOLA series  
+
+**Silvercrest (Lidl)**
+- SMRS18A1  
+- SMRS30A1  
+- SMRS35A1  
+- SIRD series  
+
+**Dual / Teufel**
+- Dual IR 3a  
+- Teufel 3sixty  
+
+### Important note
+
+This list is **not complete**.  
+Many internet and DAB+ radios use the same Frontier Silicon platform under different brand names.
+
+If your radio responds to the following URL:
+
+    http://<radio-ip>/fsapi/GET/netRemote.sys.info.friendlyName
+
+then it is very likely compatible with this plugin.
+
+If you successfully use this plugin with a radio that is not listed above, please consider opening an issue or pull request to help extend this list.
+
+
 ## Installation
 
 Install the plugin globally using npm
