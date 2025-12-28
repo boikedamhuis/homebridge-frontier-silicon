@@ -117,14 +117,6 @@ After the restart, the radio and its controls will appear in the Apple Home app.
 
 ---
 
-### Manual installation (advanced / development)
-
-If you prefer installing via the command line:
-
-```bash
-npm install -g homebridge-frontier-silicon-plugin
-
-
 ## HomeKit behaviour
 
 - The radio power state appears as a Switch accessory  
