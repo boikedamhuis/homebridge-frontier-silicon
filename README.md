@@ -1,6 +1,14 @@
 
+[![npm version](https://img.shields.io/npm/v/homebridge-frontier-silicon-plugin)](https://www.npmjs.com/package/homebridge-frontier-silicon-plugin)
+[![npm downloads](https://img.shields.io/npm/dm/homebridge-frontier-silicon-plugin)](https://www.npmjs.com/package/homebridge-frontier-silicon-plugin)
+[![npm total downloads](https://img.shields.io/npm/dt/homebridge-frontier-silicon-plugin)](https://www.npmjs.com/package/homebridge-frontier-silicon-plugin)
+[![homebridge verified](https://img.shields.io/badge/homebridge-verified-brightgreen)](https://github.com/homebridge/homebridge/wiki/Verified-Plugins)
+![node](https://img.shields.io/node/v/homebridge-frontier-silicon-plugin)
+[![GitHub release](https://img.shields.io/github/v/release/boikedamhuis/homebridge-frontier-silicon)](https://github.com/boikedamhuis/homebridge-frontier-silicon/releases)
+[![GitHub stars](https://img.shields.io/github/stars/boikedamhuis/homebridge-frontier-silicon)](https://github.com/boikedamhuis/homebridge-frontier-silicon/stargazers)
+[![GitHub issues](https://img.shields.io/github/issues/boikedamhuis/homebridge-frontier-silicon)](https://github.com/boikedamhuis/homebridge-frontier-silicon/issues)
+[![license](https://img.shields.io/npm/l/homebridge-frontier-silicon-plugin)](LICENSE)
 
-![npm](https://img.shields.io/npm/dt/homebridge-frontier-silicon-plugin)
 
 # Homebridge Frontier Silicon Plugin
 
