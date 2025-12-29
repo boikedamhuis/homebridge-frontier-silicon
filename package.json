@@ -5,6 +5,7 @@
   "icon": "icon.png",
   "license": "ISC",
   "main": "index.js",
+  "homepage": "https://github.com/boikedamhuis/homebridge-frontier-silicon#readme",
   "keywords": [
     "homebridge-plugin",
     "homebridge",

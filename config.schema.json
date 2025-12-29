@@ -1,7 +1,7 @@
 {
   "pluginAlias": "frontier-silicon",
   "pluginType": "accessory",
-  "singular": false,
+  "singular": true,
   "headerDisplay": "Frontier Silicon FSAPI radios",
   "footerDisplay": "Presets must be saved on the radio first. The plugin switches between preset numbers.",
   "schema": {
