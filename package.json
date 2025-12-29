@@ -18,6 +18,10 @@
     "type": "git",
     "url": "https://github.com/boikedamhuis/homebridge-frontier-silicon"
   },
+  "funding": {
+  "type": "paypal",
+  "url": "https://www.paypal.com/paypalme/boikedamhuis"
+  },
   "bugs": {
     "url": "https://github.com/boikedamhuis/homebridge-frontier-silicon/issues"
   },
