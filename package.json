@@ -1,31 +1,55 @@
 {
   "name": "homebridge-frontier-silicon-plugin",
   "version": "1.2.8",
-  "description": "Homebridge plugin for Frontier Silicon FSAPI devices, power and volume with safe polling",
-  "icon": "icon.png",
-  "license": "ISC",
-  "main": "index.js",
-  "homepage": "https://github.com/boikedamhuis/homebridge-frontier-silicon#readme",
+  "description": "Homebridge plugin for Frontier Silicon (FSAPI / NetRemote) based internet and DAB+ radios",
+  "displayName": "Frontier Silicon Radio",
   "keywords": [
     "homebridge-plugin",
     "homebridge",
-    "frontier",
-    "silicon",
+    "frontier-silicon",
     "fsapi",
-    "internet-radio"
+    "internet-radio",
+    "dab",
+    "dab+",
+    "undok",
+    "reciva"
   ],
+  "homepage": "https://github.com/boikedamhuis/homebridge-frontier-silicon#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/boikedamhuis/homebridge-frontier-silicon"
+    "url": "https://github.com/boikedamhuis/homebridge-frontier-silicon.git"
   },
   "bugs": {
     "url": "https://github.com/boikedamhuis/homebridge-frontier-silicon/issues"
   },
+  "license": "MIT",
   "author": {
-    "name": "Boike Damhuis"
+    "name": "Boike Damhuis",
+    "url": "https://github.com/boikedamhuis"
   },
+  "main": "index.js",
   "engines": {
     "node": ">=18.0.0",
     "homebridge": ">=1.6.0"
+  },
+  "icon": "icon.png",
+  "files": [
+    "index.js",
+    "config.schema.json",
+    "README.md",
+    "CHANGELOG.md",
+    "icon.png"
+  ],
+  "scripts": {
+    "lint": "echo \"No lint configured\"",
+    "test": "echo \"No tests configured\""
+  },
+  "homebridge": {
+    "platforms": [
+      {
+        "platform": "frontier-silicon",
+        "name": "Frontier Silicon Radios"
+      }
+    ]
   }
 }
