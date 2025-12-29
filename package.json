@@ -1,6 +1,6 @@
 {
   "name": "homebridge-frontier-silicon-plugin",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Homebridge plugin for Frontier Silicon FSAPI devices, power and volume with safe polling",
   "icon": "icon.png",
   "license": "ISC",
@@ -19,8 +19,8 @@
     "url": "https://github.com/boikedamhuis/homebridge-frontier-silicon"
   },
   "funding": {
-  "type": "paypal",
-  "url": "https://www.paypal.com/paypalme/boikedamhuis"
+    "type": "paypal",
+    "url": "https://www.paypal.com/paypalme/boikedamhuis"
   },
   "bugs": {
     "url": "https://github.com/boikedamhuis/homebridge-frontier-silicon/issues"
