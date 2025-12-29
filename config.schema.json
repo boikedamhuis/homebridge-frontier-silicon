@@ -1,111 +1,127 @@
 {
   "pluginAlias": "frontier-silicon",
-  "pluginType": "accessory",
-  "singular": true,
-  "headerDisplay": "Frontier Silicon FSAPI radios",
-  "footerDisplay": "Presets must be saved on the radio first. The plugin switches between preset numbers.",
+  "pluginType": "platform",
+  "headerDisplay": "Frontier Silicon FSAPI Radios",
+  "footerDisplay": "Configure one or more Frontier Silicon based radios. Presets must be saved on the radio first.",
   "schema": {
     "type": "object",
-    "required": ["name", "ip"],
+    "required": ["platform", "accessories"],
     "properties": {
-      "name": {
-        "title": "Name",
+      "platform": {
         "type": "string",
-        "default": "Living Room Radio",
-        "description": "The name shown in HomeKit."
+        "const": "frontier-silicon"
       },
-      "ip": {
-        "title": "IP Address",
-        "type": "string",
-        "default": "192.168.1.50",
-        "description": "The IP address of the radio on your network.",
-        "pattern": "^(?:(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\.){3}(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)$"
-      },
-      "pin": {
-        "title": "FSAPI PIN",
-        "type": "string",
-        "default": "1234",
-        "description": "FSAPI PIN for the radio. Default is usually 1234."
-      },
-      "pollIntervalSeconds": {
-        "title": "Poll interval (seconds)",
-        "type": "integer",
-        "default": 5,
-        "minimum": 2,
-        "maximum": 120,
-        "description": "How often to poll the device for updates."
-      },
-      "enableVolume": {
-        "title": "Enable volume control",
-        "type": "boolean",
-        "default": true,
-        "description": "Enable volume support."
-      },
-      "exposeSpeakerService": {
-        "title": "Expose Speaker service",
-        "type": "boolean",
-        "default": true,
-        "description": "Adds a native HomeKit Speaker service using the Volume characteristic."
-      },
-      "exposeVolumeSlider": {
-        "title": "Expose Apple Home volume slider",
-        "type": "boolean",
-        "default": true,
-        "description": "Adds a Lightbulb Brightness slider for volume control that is visible in the Apple Home app."
-      },
-      "autoPowerOnOnPreset": {
-        "title": "Power on when selecting a station",
-        "type": "boolean",
-        "default": true,
-        "description": "When you turn on a station switch, the radio will be powered on first."
-      },
-      "stations": {
-        "title": "Stations",
+      "accessories": {
+        "title": "Radios",
         "type": "array",
-        "description": "List of station switches mapped to preset numbers. Save the stations to presets on the radio first.",
         "items": {
           "type": "object",
-          "required": ["name", "preset"],
+          "required": ["name", "ip"],
           "properties": {
             "name": {
-              "title": "Station name",
+              "title": "Name",
               "type": "string",
-              "default": "Radio 2"
+              "default": "Living Room Radio",
+              "description": "The name shown in HomeKit."
             },
-            "preset": {
-              "title": "Preset number",
+            "ip": {
+              "title": "IP Address",
+              "type": "string",
+              "description": "IP address of the radio on your network.",
+              "pattern": "^(?:(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\.){3}(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)$"
+            },
+            "pin": {
+              "title": "FSAPI PIN",
+              "type": "string",
+              "default": "1234",
+              "description": "FSAPI PIN of the radio (default is usually 1234)."
+            },
+            "pollIntervalSeconds": {
+              "title": "Poll interval (seconds)",
               "type": "integer",
-              "default": 1,
-              "minimum": 0,
-              "maximum": 99
+              "default": 5,
+              "minimum": 2,
+              "maximum": 120,
+              "description": "How often the radio is polled for state updates."
+            },
+            "enableVolume": {
+              "title": "Enable volume control",
+              "type": "boolean",
+              "default": true
+            },
+            "exposeSpeakerService": {
+              "title": "Expose Speaker service",
+              "type": "boolean",
+              "default": true,
+              "description": "Expose a native HomeKit Speaker service (may not show volume slider in Apple Home)."
+            },
+            "exposeVolumeSlider": {
+              "title": "Expose Apple Home volume slider",
+              "type": "boolean",
+              "default": true,
+              "description": "Expose a Lightbulb Brightness slider for volume control in Apple Home."
+            },
+            "autoPowerOnOnPreset": {
+              "title": "Power on when selecting a station",
+              "type": "boolean",
+              "default": true
+            },
+            "stations": {
+              "title": "Stations (presets)",
+              "type": "array",
+              "description": "Map HomeKit switches to radio preset numbers. Presets must be saved on the radio first.",
+              "items": {
+                "type": "object",
+                "required": ["name", "preset"],
+                "properties": {
+                  "name": {
+                    "title": "Station name",
+                    "type": "string",
+                    "default": "Radio 2"
+                  },
+                  "preset": {
+                    "title": "Preset number",
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Preset number as shown on the radio (starting at 1)."
+                  }
+                }
+              },
+              "default": []
             }
           }
-        },
-        "default": []
+        }
       }
     }
   },
   "form": [
-    "name",
-    "ip",
-    "pin",
-    "pollIntervalSeconds",
-    "enableVolume",
-    "exposeSpeakerService",
-    "exposeVolumeSlider",
-    "autoPowerOnOnPreset",
     {
-      "key": "stations",
+      "key": "accessories",
       "type": "array",
-      "title": "Stations",
+      "title": "Radios",
       "items": [
-        "stations[].name",
-        "stations[].preset"
+        "accessories[].name",
+        "accessories[].ip",
+        "accessories[].pin",
+        "accessories[].pollIntervalSeconds",
+        "accessories[].enableVolume",
+        "accessories[].exposeSpeakerService",
+        "accessories[].exposeVolumeSlider",
+        "accessories[].autoPowerOnOnPreset",
+        {
+          "key": "accessories[].stations",
+          "type": "array",
+          "title": "Stations",
+          "items": [
+            "accessories[].stations[].name",
+            "accessories[].stations[].preset"
+          ]
+        }
       ]
     }
   ],
   "display": {
     "name": "Frontier Silicon Radio",
-    "description": "Control power, volume, and station presets via FSAPI."
+    "description": "Control Frontier Silicon / FSAPI based radios including power, volume and presets."
   }
 }
