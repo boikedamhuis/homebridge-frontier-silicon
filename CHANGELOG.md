@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog, and this project follows Semantic Versioning.
 
+## [2.0.1] – 2025-01-29
+
+### Added
+- Added PayPal donation link to support ongoing development.
+- Donation link is now visible in the Homebridge UI, GitHub repository and npm package metadata.
+
+### Changed
+- Minor documentation updates to reflect current installation and configuration via Homebridge UI.
+
+
 ## [1.2.2] – 2025-12-28
 
 ### Fixed

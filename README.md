@@ -7,6 +7,14 @@
 [![GitHub issues](https://img.shields.io/github/issues/boikedamhuis/homebridge-frontier-silicon)](https://github.com/boikedamhuis/homebridge-frontier-silicon/issues)
 [![license](https://img.shields.io/npm/l/homebridge-frontier-silicon-plugin)](LICENSE)
 
+## ❤️ Support this project
+
+If this plugin is useful to you and saves you time, consider supporting its development.
+
+👉 **Donate via PayPal:**  
+https://www.paypal.com/paypalme/boikedamhuis
+
+Your support helps keep this plugin maintained and improved.
 
 # Homebridge Frontier Silicon Plugin
 
