@@ -5,11 +5,17 @@
   "footerDisplay": "Configure one or more Frontier Silicon based radios. Presets must be saved on the radio first.",
   "schema": {
     "type": "object",
-    "required": ["platform", "accessories"],
+    "required": ["platform", "name", "accessories"],
     "properties": {
       "platform": {
         "type": "string",
         "const": "frontier-silicon"
+      },
+      "name": {
+        "title": "Platform Name",
+        "type": "string",
+        "default": "Frontier Silicon Radios",
+        "description": "A label for this platform instance in Homebridge."
       },
       "accessories": {
         "title": "Radios",
@@ -95,6 +101,7 @@
     }
   },
   "form": [
+    "name",
     {
       "key": "accessories",
       "type": "array",
