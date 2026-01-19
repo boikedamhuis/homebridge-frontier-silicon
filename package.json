@@ -1,6 +1,6 @@
 {
   "name": "homebridge-frontier-silicon-plugin",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Homebridge plugin for Frontier Silicon (FSAPI / NetRemote) based internet and DAB+ radios",
   "displayName": "Frontier Silicon Radio",
   "keywords": [
@@ -52,5 +52,5 @@
         "name": "Frontier Silicon Radio"
       }
     ]
-  } 
+  }
 }
