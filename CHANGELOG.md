@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog, and this project follows Semantic Versioning.
 
+## [2.0.2] – 2026-01-19
+
+### Fixed
+- Fixed Homebridge UI configuration to allow adding multiple Frontier Silicon radios as separate accessories.
+
 ## [2.0.1] – 2025-01-29
 
 ### Added
