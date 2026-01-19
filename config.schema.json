@@ -1,7 +1,7 @@
 {
   "pluginAlias": "frontier-silicon",
   "pluginType": "accessory",
-  "singular": true,
+  "singular": false,
   "headerDisplay": "Frontier Silicon FSAPI radios",
   "footerDisplay": "Presets must be saved on the radio first. The plugin switches between preset numbers.",
   "schema": {
@@ -22,7 +22,7 @@
         "pattern": "^(?:(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\.){3}(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)$"
       },
       "pin": {
-        "title": "FSAPI PIN",
+        "title": "FSAPI PIN", 
         "type": "string",
         "default": "1234",
         "description": "FSAPI PIN for the radio. Default is usually 1234."
