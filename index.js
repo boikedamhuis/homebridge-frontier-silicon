@@ -70,6 +70,7 @@ function FrontierSiliconAccessory(log, config) {
     .setCharacteristic(Characteristic.SerialNumber, this.ip || "unknown");
 
   this.switchService = new Service.Switch(this.name);
+  setServiceName(this.switchService, this.name);
   this.switchService
     .getCharacteristic(Characteristic.On)
     .on("get", this.handleGetPower.bind(this))
@@ -78,6 +79,7 @@ function FrontierSiliconAccessory(log, config) {
   if (this.enableVolume) {
     if (this.exposeSpeakerService) {
       this.speakerService = new Service.Speaker(this.name + " Speaker");
+      setServiceName(this.speakerService, this.name + " Speaker");
 
       this.speakerService
         .getCharacteristic(Characteristic.Volume)
@@ -94,6 +96,7 @@ function FrontierSiliconAccessory(log, config) {
 
     if (this.exposeVolumeSlider) {
       this.volumeSliderService = new Service.Lightbulb(this.name + " Volume");
+      setServiceName(this.volumeSliderService, this.name + " Volume");
 
       this.volumeSliderService
         .getCharacteristic(Characteristic.On)
@@ -141,6 +144,8 @@ FrontierSiliconAccessory.prototype.buildInputServices = function () {
       modeKey: null,
       service: new Service.Switch(inputName, "input_" + String(index))
     };
+
+    setServiceName(entry.service, inputName);
 
     entry.service
       .getCharacteristic(Characteristic.On)
@@ -296,6 +301,7 @@ FrontierSiliconAccessory.prototype.buildStationServices = function () {
     seenSubtypes.add(subtype);
 
     const sw = new Service.Switch(stationName, subtype);
+    setServiceName(sw, stationName);
 
     sw.getCharacteristic(Characteristic.On)
       .on("get", (cb) => {
@@ -649,6 +655,18 @@ function formatModes(modes) {
   return modes
     .map((m) => m.key + '="' + m.label + '"' + (m.id ? " (" + m.id + ")" : ""))
     .join(", ");
+}
+
+// The Home app (iOS 16+) shows the accessory name for every service of a multi service
+// accessory unless the service has a ConfiguredName, so set it next to Name
+function setServiceName(service, name) {
+  service.setCharacteristic(Characteristic.Name, name);
+
+  if (!Characteristic.ConfiguredName) return;
+  if (!service.testCharacteristic(Characteristic.ConfiguredName)) {
+    service.addOptionalCharacteristic(Characteristic.ConfiguredName);
+  }
+  service.setCharacteristic(Characteristic.ConfiguredName, name);
 }
 
 function clampInt(n, min, max) {
