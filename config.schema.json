@@ -14,6 +14,18 @@
         "default": "Living Room Radio",
         "description": "The name shown in HomeKit."
       },
+      "powerSwitchName": {
+        "title": "Power switch name",
+        "type": "string",
+        "placeholder": "Same as Name",
+        "description": "Name of the on/off switch in the Home app. Leave empty to use the accessory name."
+      },
+      "volumeName": {
+        "title": "Volume slider name",
+        "type": "string",
+        "placeholder": "Name + \" Volume\"",
+        "description": "Name of the volume slider in the Home app. Leave empty to use the accessory name followed by \"Volume\"."
+      },
       "ip": {
         "title": "IP Address",
         "type": "string",
@@ -89,6 +101,8 @@
     "name",
     "ip",
     "pin",
+    "powerSwitchName",
+    "volumeName",
     "pollIntervalSeconds",
     "enableVolume",
     "exposeSpeakerService",

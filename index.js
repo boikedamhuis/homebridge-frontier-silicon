@@ -18,6 +18,11 @@ function FrontierSiliconAccessory(log, config) {
   this.log = log;
 
   this.name = config.name || "Frontier Silicon Radio";
+
+  // Names of the power switch and the volume slider as shown in the Home app
+  this.powerSwitchName = String(config.powerSwitchName ?? "").trim() || this.name;
+  this.volumeName = String(config.volumeName ?? "").trim() || this.name + " Volume";
+
   this.ip = config.ip;
   this.pin = String(config.pin ?? "1234");
   this.pollIntervalSeconds = Number(config.pollIntervalSeconds ?? 5);
@@ -56,7 +61,8 @@ function FrontierSiliconAccessory(log, config) {
     .setCharacteristic(Characteristic.Model, "FSAPI Radio")
     .setCharacteristic(Characteristic.SerialNumber, this.ip || "unknown");
 
-  this.switchService = new Service.Switch(this.name);
+  this.switchService = new Service.Switch(this.powerSwitchName);
+  setServiceName(this.switchService, this.powerSwitchName);
   this.switchService
     .getCharacteristic(Characteristic.On)
     .on("get", this.handleGetPower.bind(this))
@@ -65,6 +71,7 @@ function FrontierSiliconAccessory(log, config) {
   if (this.enableVolume) {
     if (this.exposeSpeakerService) {
       this.speakerService = new Service.Speaker(this.name + " Speaker");
+      setServiceName(this.speakerService, this.name + " Speaker");
 
       this.speakerService
         .getCharacteristic(Characteristic.Volume)
@@ -80,7 +87,8 @@ function FrontierSiliconAccessory(log, config) {
     }
 
     if (this.exposeVolumeSlider) {
-      this.volumeSliderService = new Service.Lightbulb(this.name + " Volume");
+      this.volumeSliderService = new Service.Lightbulb(this.volumeName);
+      setServiceName(this.volumeSliderService, this.volumeName);
 
       this.volumeSliderService
         .getCharacteristic(Characteristic.On)
@@ -123,6 +131,7 @@ FrontierSiliconAccessory.prototype.buildStationServices = function () {
     seenSubtypes.add(subtype);
 
     const sw = new Service.Switch(stationName, subtype);
+    setServiceName(sw, stationName);
 
     sw.getCharacteristic(Characteristic.On)
       .on("get", (cb) => {
@@ -387,6 +396,18 @@ function parseFsapiValue(body) {
   if (tailNum) return Number(tailNum[1]);
 
   return trimmed;
+}
+
+// The Home app (iOS 16+) shows the accessory name for every service of a multi service
+// accessory unless the service has a ConfiguredName, so set it next to Name
+function setServiceName(service, name) {
+  service.setCharacteristic(Characteristic.Name, name);
+
+  if (!Characteristic.ConfiguredName) return;
+  if (!service.testCharacteristic(Characteristic.ConfiguredName)) {
+    service.addOptionalCharacteristic(Characteristic.ConfiguredName);
+  }
+  service.setCharacteristic(Characteristic.ConfiguredName, name);
 }
 
 function clampInt(n, min, max) {

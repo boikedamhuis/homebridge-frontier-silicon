@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file.
 
 The format is based on Keep a Changelog, and this project follows Semantic Versioning.
 
+## [Unreleased]
+
+### Added
+- New options `powerSwitchName` and `volumeName` to name the power switch and the volume slider in the Home app.
+
+### Fixed
+- Station switches, the power switch and the volume slider show their own names in the Home app (iOS 16+) instead of the radio name, by setting `ConfiguredName` on every service.
+
 ## [2.0.2] – 2026-01-19
 
 ### Fixed

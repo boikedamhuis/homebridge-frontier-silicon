@@ -123,7 +123,7 @@ No manual JSON editing is required.
    - Name
    - IP address of the radio
    - FSAPI PIN (default is usually `1234`)
-8. (Optional) Configure volume options and station presets via the UI
+8. (Optional) Configure switch names, volume options and station presets via the UI
 9. Save the configuration and **restart Homebridge**
 
 After the restart, the radio and its controls will appear in the Apple Home app.
@@ -134,11 +134,23 @@ After the restart, the radio and its controls will appear in the Apple Home app.
 
 - The radio power state appears as a Switch accessory  
 - Volume control is exposed as a separate slider using a Lightbulb Brightness characteristic  
+- Each configured station appears as a Switch, turning one on selects that preset  
 
 If the radio becomes unreachable, HomeKit will continue to show the last known state.  
 Homebridge will not crash or hang.
 
 When the radio becomes reachable again, the state is updated automatically.
+
+### Switch names
+
+Every switch is shown in the Home app with its own name: each station with its configured name, the power switch with the accessory name and the volume slider with the accessory name followed by "Volume".
+To give the power switch and the volume slider other names, set `powerSwitchName` and `volumeName`:
+
+```json
+"name": "Kitchen Radio",
+"powerSwitchName": "Radio",
+"volumeName": "Radio volume"
+```
 
 ## How it works
 
