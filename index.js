@@ -33,13 +33,26 @@ function FrontierSiliconAccessory(log, config) {
   // preset is 1 based like the radio UI, internally we convert to 0 based presetKey for FSAPI
   this.stations = Array.isArray(config.stations) ? config.stations : [];
 
+  this.autoPowerOnOnInput = config.autoPowerOnOnInput !== false;
+
+  // inputs: [{ name: "AUX", mode: "AUX in" }, { name: "Internet Radio", mode: "0" }, ...]
+  // mode is either the numeric FSAPI mode key or the mode label / id reported by the radio
+  this.inputs = Array.isArray(config.inputs) ? config.inputs : [];
+
+  // Cached netRemote.sys.caps.validModes, fetched on first use
+  this.validModes = null;
+
   this.lastKnownPower = null;
   this.lastKnownRadioVolume = null;
 
   // 0 based FSAPI preset key that we last selected via HomeKit
   this.lastKnownPresetKey = null;
 
+  // FSAPI mode key (netRemote.sys.mode) as last read from or written to the radio
+  this.lastKnownModeKey = null;
+
   this.isUpdatingStationSwitches = false;
+  this.isUpdatingInputSwitches = false;
 
   if (!this.ip) {
     this.log.warn("No ip configured, accessory will not work.");
@@ -97,8 +110,168 @@ function FrontierSiliconAccessory(log, config) {
   this.stationServices = [];
   this.buildStationServices();
 
+  this.inputServices = [];
+  this.buildInputServices();
+
+  if (this.inputServices.length > 0 && this.ip) {
+    this.logAvailableModes();
+  }
+
   this.startPolling();
 }
+
+FrontierSiliconAccessory.prototype.buildInputServices = function () {
+  if (!Array.isArray(this.inputs) || this.inputs.length === 0) return;
+
+  const seenModes = new Set();
+
+  this.inputs.forEach((input, index) => {
+    if (!input || typeof input !== "object") return;
+
+    const inputName = String(input.name ?? "").trim();
+    const mode = String(input.mode ?? "").trim();
+
+    if (!inputName || !mode) return;
+    if (seenModes.has(mode.toLowerCase())) return;
+    seenModes.add(mode.toLowerCase());
+
+    const entry = {
+      name: inputName,
+      mode,
+      modeKey: null,
+      service: new Service.Switch(inputName, "input_" + String(index))
+    };
+
+    entry.service
+      .getCharacteristic(Characteristic.On)
+      .on("get", (cb) => {
+        cb(null, entry.modeKey !== null && this.lastKnownModeKey === entry.modeKey);
+      })
+      .on("set", (value, cb) => {
+        this.handleSetInput(entry, !!value, cb);
+      });
+
+    this.inputServices.push(entry);
+  });
+};
+
+// Resolves the configured mode (number or label) of every input to an FSAPI mode key
+FrontierSiliconAccessory.prototype.resolveInputModeKeys = async function () {
+  const unresolved = this.inputServices.filter((i) => i.modeKey === null && !i.notFound);
+  if (unresolved.length === 0) return;
+
+  for (const entry of unresolved) {
+    if (/^\d+$/.test(entry.mode)) {
+      entry.modeKey = Number(entry.mode);
+      continue;
+    }
+
+    // The mode list is fetched once, labels that do not match stay unresolved
+    if (!this.validModes) this.validModes = await this.client.getValidModes();
+    const modes = this.validModes;
+
+    const wanted = entry.mode.toLowerCase();
+    const match = modes.find(
+      (m) => String(m.label).toLowerCase() === wanted || String(m.id).toLowerCase() === wanted
+    );
+
+    if (match) {
+      entry.modeKey = match.key;
+    } else {
+      entry.notFound = true;
+      this.log.warn(
+        'Input "' + entry.name + '": mode "' + entry.mode + '" not found on the radio. Available modes: ' +
+          formatModes(modes)
+      );
+    }
+  }
+};
+
+FrontierSiliconAccessory.prototype.logAvailableModes = async function () {
+  try {
+    this.validModes = await this.client.getValidModes();
+    this.log.info("Available modes on the radio: " + formatModes(this.validModes));
+    await this.resolveInputModeKeys();
+    this.syncInputSwitchesFromModeKey(this.lastKnownModeKey);
+  } catch (err) {
+    this.log.warn("Could not read available modes from the radio.", toMsg(err));
+  }
+};
+
+FrontierSiliconAccessory.prototype.handleSetInput = async function (entry, turnOn, callback) {
+  if (this.isUpdatingInputSwitches) {
+    callback(null);
+    return;
+  }
+
+  // Exclusive selector behaviour, same as the station switches
+  if (!turnOn) {
+    callback(null);
+    this.syncInputSwitchesFromModeKey(this.lastKnownModeKey);
+    return;
+  }
+
+  try {
+    await this.resolveInputModeKeys();
+  } catch (err) {
+    this.log.warn("Could not read available modes from the radio.", toMsg(err));
+  }
+
+  if (entry.modeKey === null) {
+    callback(null);
+    this.syncInputSwitchesFromModeKey(this.lastKnownModeKey);
+    return;
+  }
+
+  const previousModeKey = this.lastKnownModeKey;
+
+  // Optimistic UI update so the previous input immediately turns off
+  this.lastKnownModeKey = entry.modeKey;
+  this.syncInputSwitchesFromModeKey(entry.modeKey);
+
+  try {
+    if (this.autoPowerOnOnInput) {
+      try {
+        await this.client.setPower(true);
+        this.lastKnownPower = true;
+        this.switchService.getCharacteristic(Characteristic.On).updateValue(true);
+      } catch (_e) {
+        // ignore
+      }
+    }
+
+    await this.client.setMode(entry.modeKey);
+
+    // Presets belong to a mode, a station selected before is no longer playing
+    if (previousModeKey !== entry.modeKey) {
+      this.lastKnownPresetKey = null;
+      this.syncStationSwitchesFromPresetKey(null);
+    }
+
+    callback(null);
+  } catch (err) {
+    this.log.warn("Input set failed.", toMsg(err));
+    callback(null);
+
+    this.lastKnownModeKey = previousModeKey;
+    this.syncInputSwitchesFromModeKey(previousModeKey);
+  }
+};
+
+FrontierSiliconAccessory.prototype.syncInputSwitchesFromModeKey = function (modeKey) {
+  if (!this.inputServices || this.inputServices.length === 0) return;
+
+  this.isUpdatingInputSwitches = true;
+
+  try {
+    for (const i of this.inputServices) {
+      const shouldBeOn = i.modeKey !== null && modeKey === i.modeKey;
+      i.service.getCharacteristic(Characteristic.On).updateValue(shouldBeOn);
+    }
+  } finally {
+    this.isUpdatingInputSwitches = false;
+  }
+};
 
 FrontierSiliconAccessory.prototype.buildStationServices = function () {
   if (!Array.isArray(this.stations) || this.stations.length === 0) return;
@@ -148,6 +321,7 @@ FrontierSiliconAccessory.prototype.getServices = function () {
   if (this.enableVolume && this.volumeSliderService) services.push(this.volumeSliderService);
 
   for (const s of this.stationServices) services.push(s.service);
+  for (const i of this.inputServices) services.push(i.service);
 
   return services;
 };
@@ -293,6 +467,35 @@ FrontierSiliconAccessory.prototype.startPolling = function () {
       }
     }
 
+    if (this.inputServices.length > 0) {
+      try {
+        // Radio may have been offline at startup
+        if (!this.validModes && this.inputServices.some((i) => i.modeKey === null && !i.notFound)) {
+          await this.resolveInputModeKeys();
+          this.syncInputSwitchesFromModeKey(this.lastKnownModeKey);
+        }
+      } catch (err) {
+        if (this.log.debug) this.log.debug("Resolving input modes failed.", toMsg(err));
+      }
+
+      try {
+        const modeKey = await this.client.getMode();
+        if (this.lastKnownModeKey !== modeKey) {
+          const previousModeKey = this.lastKnownModeKey;
+          this.lastKnownModeKey = modeKey;
+          this.syncInputSwitchesFromModeKey(modeKey);
+
+          // Mode was changed on the radio itself, a selected station is no longer playing
+          if (previousModeKey !== null) {
+            this.lastKnownPresetKey = null;
+            this.syncStationSwitchesFromPresetKey(null);
+          }
+        }
+      } catch (err) {
+        if (this.log.debug) this.log.debug("Polling mode failed.", toMsg(err));
+      }
+    }
+
     // Preset readback is not implemented for this firmware
     // We keep station switch states based on the last selected presetKey via HomeKit
   };
@@ -330,6 +533,26 @@ FsApiClient.prototype.getVolume = async function () {
 FsApiClient.prototype.setVolume = async function (volume) {
   const v = clampInt(Number(volume), 0, 100);
   await this.fetchText("/fsapi/SET/netRemote.sys.audio.volume?value=" + v);
+};
+
+FsApiClient.prototype.getMode = async function () {
+  const text = await this.fetchText("/fsapi/GET/netRemote.sys.mode");
+  const value = Number(parseFsapiValue(text));
+  if (!Number.isFinite(value)) throw new Error("Invalid mode response");
+  return value;
+};
+
+FsApiClient.prototype.setMode = async function (modeKey) {
+  const m = Math.trunc(Number(modeKey));
+  if (!Number.isFinite(m) || m < 0) throw new Error("Invalid mode key");
+
+  await this.fetchText("/fsapi/SET/netRemote.sys.mode?value=" + encodeURIComponent(String(m)));
+};
+
+// Returns [{ key, id, label }] as reported by netRemote.sys.caps.validModes
+FsApiClient.prototype.getValidModes = async function () {
+  const text = await this.fetchText("/fsapi/LIST_GET_NEXT/netRemote.sys.caps.validModes/-1?maxItems=100");
+  return parseFsapiModeList(text);
 };
 
 // DIR3010 style preset selection using nav.state and selectPreset
@@ -387,6 +610,43 @@ function parseFsapiValue(body) {
   if (tailNum) return Number(tailNum[1]);
 
   return trimmed;
+}
+
+function parseFsapiModeList(body) {
+  const text = String(body ?? "");
+
+  if (!/<status>\s*FS_OK\s*<\/status>/i.test(text)) {
+    throw new Error("Mode list not available");
+  }
+
+  const modes = [];
+  const itemRe = /<item\s+key="(\d+)"\s*>([\s\S]*?)<\/item>/gi;
+  let item;
+
+  while ((item = itemRe.exec(text)) !== null) {
+    const fields = {};
+    const fieldRe = /<field\s+name="([^"]+)"\s*>\s*<[^>]+>([\s\S]*?)<\/[^>]+>\s*<\/field>/gi;
+    let field;
+
+    while ((field = fieldRe.exec(item[2])) !== null) {
+      fields[field[1].toLowerCase()] = field[2].trim();
+    }
+
+    if (fields.selectable === "0") continue;
+
+    modes.push({
+      key: Number(item[1]),
+      id: fields.id ?? "",
+      label: fields.label ?? fields.id ?? ""
+    });
+  }
+
+  return modes;
+}
+
+function formatModes(modes) {
+  if (!Array.isArray(modes) || modes.length === 0) return "(none)";
+  return modes.map((m) => m.key + '="' + m.label + '"').join(", ");
 }
 
 function clampInt(n, min, max) {

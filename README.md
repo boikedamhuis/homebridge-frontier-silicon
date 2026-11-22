@@ -123,7 +123,7 @@ No manual JSON editing is required.
    - Name
    - IP address of the radio
    - FSAPI PIN (default is usually `1234`)
-8. (Optional) Configure volume options and station presets via the UI
+8. (Optional) Configure volume options, station presets and inputs via the UI
 9. Save the configuration and **restart Homebridge**
 
 After the restart, the radio and its controls will appear in the Apple Home app.
@@ -134,6 +134,28 @@ After the restart, the radio and its controls will appear in the Apple Home app.
 
 - The radio power state appears as a Switch accessory  
 - Volume control is exposed as a separate slider using a Lightbulb Brightness characteristic  
+- Each configured station appears as a Switch, turning one on selects that preset  
+- Each configured input appears as a Switch, turning one on switches the radio to that mode  
+
+### Inputs
+
+Inputs switch the radio between its modes, for example Internet radio, DAB, FM, Bluetooth or AUX in.
+The modes and their numbering differ between radios, so the plugin writes the modes your radio reports to the Homebridge log on startup:
+
+    Available modes on the radio: 0="Internet radio", 1="Spotify", 2="Music player", 3="DAB", 4="FM", 5="Bluetooth", 6="AUX in"
+
+Use either the label or the number as the mode of an input:
+
+```json
+"inputs": [
+  { "name": "Internet Radio", "mode": "Internet radio" },
+  { "name": "AUX", "mode": "AUX in" }
+]
+```
+
+The input switches behave as an exclusive selector, like the station switches.
+The current mode is read back from the radio on every poll, so changes made on the radio itself are reflected in HomeKit.
+When the mode changes, a previously selected station switch is turned off, because presets belong to a mode.
 
 If the radio becomes unreachable, HomeKit will continue to show the last known state.  
 Homebridge will not crash or hang.
@@ -149,6 +171,9 @@ netRemote.sys.power
 
 Volume  
 netRemote.sys.audio.volume
+
+Input (mode)  
+netRemote.sys.mode, netRemote.sys.caps.validModes
 
 All requests are executed with timeouts and error handling to ensure Homebridge stability.
 

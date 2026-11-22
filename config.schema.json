@@ -82,6 +82,35 @@
           }
         },
         "default": []
+      },
+      "autoPowerOnOnInput": {
+        "title": "Power on when selecting an input",
+        "type": "boolean",
+        "default": true,
+        "description": "When you turn on an input switch, the radio will be powered on first."
+      },
+      "inputs": {
+        "title": "Inputs",
+        "type": "array",
+        "description": "List of input switches (radio modes such as Internet radio, DAB or AUX in). The modes your radio supports are written to the Homebridge log on startup.",
+        "items": {
+          "type": "object",
+          "required": ["name", "mode"],
+          "properties": {
+            "name": {
+              "title": "Switch name",
+              "type": "string",
+              "default": "AUX"
+            },
+            "mode": {
+              "title": "Mode",
+              "type": "string",
+              "default": "AUX in",
+              "description": "Mode label as shown in the log (e.g. \"Internet radio\", \"AUX in\") or the numeric mode key."
+            }
+          }
+        },
+        "default": []
       }
     }
   },
@@ -102,10 +131,20 @@
         "stations[].name",
         "stations[].preset"
       ]
+    },
+    "autoPowerOnOnInput",
+    {
+      "key": "inputs",
+      "type": "array",
+      "title": "Inputs",
+      "items": [
+        "inputs[].name",
+        "inputs[].mode"
+      ]
     }
   ],
   "display": {
     "name": "Frontier Silicon Radio",
-    "description": "Control power, volume, and station presets via FSAPI."
+    "description": "Control power, volume, station presets and inputs via FSAPI."
   }
 }
