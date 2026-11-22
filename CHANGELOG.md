@@ -7,8 +7,8 @@ The format is based on Keep a Changelog, and this project follows Semantic Versi
 ## [Unreleased]
 
 ### Added
-- Input switches to change the radio mode (e.g. Internet radio, DAB, AUX in) via `netRemote.sys.mode`.
-- Inputs can be configured by mode label or numeric mode key; the modes reported by the radio are logged on startup.
+- Input switches to change the radio mode (e.g. Internet radio, DAB, AUX) via `netRemote.sys.mode`.
+- Inputs can be configured by mode label or numeric mode key; the modes reported by the radio (number, label and id) are logged on startup.
 - The current mode is polled, so mode changes made on the radio are reflected in HomeKit.
 - New option `autoPowerOnOnInput` to power on the radio before switching the input.
 

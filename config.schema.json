@@ -92,7 +92,7 @@
       "inputs": {
         "title": "Inputs",
         "type": "array",
-        "description": "List of input switches (radio modes such as Internet radio, DAB or AUX in). The modes your radio supports are written to the Homebridge log on startup.",
+        "description": "List of input switches (radio modes such as Internet radio, DAB or AUX). The modes your radio supports are written to the Homebridge log on startup.",
         "items": {
           "type": "object",
           "required": ["name", "mode"],
@@ -105,8 +105,8 @@
             "mode": {
               "title": "Mode",
               "type": "string",
-              "default": "AUX in",
-              "description": "Mode label as shown in the log (e.g. \"Internet radio\", \"AUX in\") or the numeric mode key."
+              "default": "AUXIN",
+              "description": "Mode id, label or number as shown in the Homebridge log on startup, e.g. \"IR\", \"DAB\" or \"AUXIN\". The id is recommended, labels depend on the radio's menu language."
             }
           }
         },

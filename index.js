@@ -35,7 +35,7 @@ function FrontierSiliconAccessory(log, config) {
 
   this.autoPowerOnOnInput = config.autoPowerOnOnInput !== false;
 
-  // inputs: [{ name: "AUX", mode: "AUX in" }, { name: "Internet Radio", mode: "0" }, ...]
+  // inputs: [{ name: "AUX", mode: "AUXIN" }, { name: "Internet Radio", mode: "0" }, ...]
   // mode is either the numeric FSAPI mode key or the mode label / id reported by the radio
   this.inputs = Array.isArray(config.inputs) ? config.inputs : [];
 
@@ -646,7 +646,9 @@ function parseFsapiModeList(body) {
 
 function formatModes(modes) {
   if (!Array.isArray(modes) || modes.length === 0) return "(none)";
-  return modes.map((m) => m.key + '="' + m.label + '"').join(", ");
+  return modes
+    .map((m) => m.key + '="' + m.label + '"' + (m.id ? " (" + m.id + ")" : ""))
+    .join(", ");
 }
 
 function clampInt(n, min, max) {

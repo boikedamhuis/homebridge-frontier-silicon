@@ -139,19 +139,22 @@ After the restart, the radio and its controls will appear in the Apple Home app.
 
 ### Inputs
 
-Inputs switch the radio between its modes, for example Internet radio, DAB, FM, Bluetooth or AUX in.
-The modes and their numbering differ between radios, so the plugin writes the modes your radio reports to the Homebridge log on startup:
+Inputs switch the radio between its modes, for example Internet radio, DAB, FM, Bluetooth or AUX.
+The modes and their numbering differ between radios, so the plugin writes the modes your radio reports to the Homebridge log on startup, as number, label and id:
 
-    Available modes on the radio: 0="Internet radio", 1="Spotify", 2="Music player", 3="DAB", 4="FM", 5="Bluetooth", 6="AUX in"
+    Available modes on the radio: 0="Internet Radio" (IR), 1="Spotify" (Spotify), 3="Musikabspieler" (MP), 4="DAB" (DAB), 5="FM" (FM), 6="Bluetooth" (Bluetooth), 7="Auxiliary Input" (AUXIN)
 
-Use either the label or the number as the mode of an input:
+Use the id, the label or the number as the mode of an input (matching is case-insensitive):
 
 ```json
 "inputs": [
-  { "name": "Internet Radio", "mode": "Internet radio" },
-  { "name": "AUX", "mode": "AUX in" }
+  { "name": "Internet Radio", "mode": "IR" },
+  { "name": "DAB", "mode": "DAB" },
+  { "name": "AUX", "mode": "AUXIN" }
 ]
 ```
+
+The id is the most reliable choice: labels depend on the radio model and its menu language (the example above is from a Roberts Stream 94i set to German), and the numbers differ between models.
 
 The input switches behave as an exclusive selector, like the station switches.
 The current mode is read back from the radio on every poll, so changes made on the radio itself are reflected in HomeKit.
